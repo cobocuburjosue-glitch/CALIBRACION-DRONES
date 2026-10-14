@@ -88,6 +88,7 @@ function doPost(e) {
       case 'guardar':    return json_(conSesion_(p.token, u => guardar_(u, p.datos)));
       case 'guardarVuelo': return json_(conSesion_(p.token, u => guardarVuelo_(u, p.datos)));
       case 'vuelos':     return json_(conSesion_(p.token, u => ({ ok: true, vuelos: vuelos_(60) })));
+      case 'reporte':    return json_(conSesion_(p.token, u => generarReporte_(u, p.desde, p.hasta, p.enviar !== false)));
       case 'hoy':        return json_(conSesion_(p.token, u => ({ ok: true, registros: registros_(true) })));
       case 'dashboard':  return json_(conSesion_(p.token, u => {
                             if (!u.permisos.dashboard) return { ok: false, error: 'No tiene permiso para el dashboard.' };
@@ -554,6 +555,171 @@ function vuelos_(max) {
   return out.slice(-max).reverse();
 }
 
+/* ============================================================
+ *  REPORTE DE ANÁLISIS POR DRON  (botón "Generar reportes")
+ * ============================================================ */
+
+function isoDe_(dmy) { const m = String(dmy).match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? m[3] + '-' + m[2] + '-' + m[1] : ''; }
+function prom_(a) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN; }
+function p_(n, d) { return isNaN(n) || n == null ? '—' : (n > 0 ? '+' : '') + (n * 100).toFixed(d == null ? 2 : d) + '%'; }
+function pa_(n, d) { return isNaN(n) || n == null ? '—' : (n * 100).toFixed(d == null ? 1 : d) + '%'; }
+function n_(n, d) { return isNaN(n) || n == null ? '—' : Number(n).toFixed(d == null ? 3 : d); }
+function h_(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function dmy_(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+
+function analizar_(desde, hasta) {
+  const tol = paramsFlujos_().variacion;
+  const cal = registros_(false).map(r => Object.assign(r, { iso: isoDe_(r.fecha) }))
+    .filter(r => r.iso && r.iso >= desde && r.iso <= hasta && r.b1 != null && r.b2 != null);
+  let vue = [];
+  try { vue = vuelos_(100000).map(v => Object.assign(v, { iso: isoDe_(v.fecha) })).filter(v => v.iso && v.iso >= desde && v.iso <= hasta); } catch (e) {}
+
+  const clave = r => r.iso + '|' + ('0000' + String(r.descarga).replace(/\D/g, '')).slice(-4);
+  const nombres = Array.from(new Set(cal.map(r => r.dron).concat(vue.map(v => v.dron))))
+    .sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+
+  const drones = nombres.map(dr => {
+    const rs = cal.filter(r => r.dron === dr).sort((a, b) => clave(a) < clave(b) ? -1 : 1);
+    const vs = vue.filter(v => v.dron === dr);
+    const dentro = rs.filter(r => /DENTRO/i.test(r.estado)).length;
+    const v1 = rs.map(r => r.varB1).filter(x => x != null), v2 = rs.map(r => r.varB2).filter(x => x != null);
+    const vg = rs.map(r => r.varGeneral).filter(x => x != null);
+    const desb = rs.filter(r => r.caudalBoq).map(r => Math.abs(r.b1 - r.b2) / r.caudalBoq);
+    const fuera1 = rs.filter(r => r.b1 < r.min || r.b1 > r.max).length;
+    const fuera2 = rs.filter(r => r.b2 < r.min || r.b2 > r.max).length;
+    const mitad = Math.floor(vg.length / 2);
+    const t1 = prom_(vg.slice(0, mitad).map(Math.abs)), t2 = prom_(vg.slice(vg.length - mitad).map(Math.abs));
+    let tendencia = 'Sin datos suficientes';
+    if (vg.length >= 4) tendencia = t2 < t1 * 0.8 ? 'Mejorando' : t2 > t1 * 1.2 ? 'Empeorando' : 'Estable';
+    const ult = rs[rs.length - 1];
+    const pctDentro = rs.length ? dentro / rs.length : NaN;
+    const absG = prom_(vg.map(Math.abs));
+    let clase = 'Sin calibraciones';
+    if (rs.length) {
+      if (pctDentro >= 0.8 && absG <= tol && /DENTRO/i.test(ult.estado)) clase = 'Bueno';
+      else if (pctDentro < 0.5 || (!/DENTRO/i.test(ult.estado) && pctDentro < 0.8)) clase = 'Crítico';
+      else clase = 'Atención';
+    }
+    const vVar = vs.map(v => v.variacion).filter(x => x != null);
+    const vQ = vs.map(v => v.varCaudal).filter(x => x != null);
+    return {
+      dron: dr, n: rs.length, dentro: dentro, pctDentro: pctDentro,
+      promB1: prom_(v1), promB2: prom_(v2), promAbsGen: absG,
+      maxAbs: Math.max.apply(null, [0].concat(v1.map(Math.abs), v2.map(Math.abs))),
+      desbalance: prom_(desb), fuera1: fuera1, fuera2: fuera2, tendencia: tendencia,
+      ultimo: ult ? { fecha: ult.fecha, descarga: ult.descarga, estado: ult.estado, varB1: ult.varB1, varB2: ult.varB2 } : null,
+      clase: clase,
+      vuelos: vs.length, vueloVar: prom_(vVar), vueloAbsVar: prom_(vVar.map(Math.abs)), vueloVarQ: prom_(vQ),
+      vuelosFuera: vVar.filter(x => Math.abs(x) > tol).length
+    };
+  });
+
+  // Hallazgos automáticos
+  const tot = cal.length, totDentro = cal.filter(r => /DENTRO/i.test(r.estado)).length;
+  const con = drones.filter(d => d.n);
+  const hall = [];
+  if (tot) hall.push('Se registraron <b>' + tot + '</b> calibraciones en <b>' + con.length + '</b> drones; <b>' + pa_(totDentro / tot) + '</b> quedaron dentro de la tolerancia de ±' + (tol * 100).toFixed(0) + '%.');
+  const conMin = con.filter(d => d.n >= 2);
+  if (conMin.length) {
+    const mejor = conMin.slice().sort((a, b) => b.pctDentro - a.pctDentro || a.promAbsGen - b.promAbsGen)[0];
+    const peor = conMin.slice().sort((a, b) => a.pctDentro - b.pctDentro || b.promAbsGen - a.promAbsGen)[0];
+    hall.push('Mejor desempeño: <b>' + h_(mejor.dron) + '</b> (' + pa_(mejor.pctDentro) + ' dentro de rango, variación general promedio ' + pa_(mejor.promAbsGen, 2) + ').');
+    if (peor.dron !== mejor.dron) hall.push('Mayor dificultad: <b>' + h_(peor.dron) + '</b> (' + pa_(peor.pctDentro) + ' dentro de rango, variación general promedio ' + pa_(peor.promAbsGen, 2) + ').');
+  }
+  con.forEach(d => {
+    [['Boquilla 1', d.promB1], ['Boquilla 2', d.promB2]].forEach(([b, v]) => {
+      if (d.n >= 2 && Math.abs(v) > tol * 0.6) hall.push('<b>' + h_(d.dron) + '</b>: la ' + b + ' descarga en promedio ' + p_(v) + ' ' + (v < 0 ? 'por debajo' : 'por encima') + ' de lo teórico (tendencia sistemática): revisar boquilla, filtro o presión.');
+    });
+    if (d.n >= 2 && d.desbalance > tol) hall.push('<b>' + h_(d.dron) + '</b>: desbalance promedio entre boquillas de ' + pa_(d.desbalance) + ' del caudal por boquilla: una boquilla trabaja más que la otra.');
+    if (d.tendencia === 'Empeorando') hall.push('<b>' + h_(d.dron) + '</b>: la variación va en aumento dentro del período.');
+    if (d.ultimo && !/DENTRO/i.test(d.ultimo.estado)) hall.push('<b>' + h_(d.dron) + '</b>: su última calibración (' + d.ultimo.fecha + ', ' + h_(d.ultimo.descarga) + ') quedó <b>fuera de rango</b>.');
+    if (d.vuelos && Math.abs(d.vueloVar) > tol) hall.push('<b>' + h_(d.dron) + '</b>: en vuelo aplicó en promedio ' + p_(d.vueloVar) + ' respecto al L/ha teórico.');
+  });
+  if (!tot) hall.push('No hay calibraciones registradas en el período seleccionado.');
+
+  const rec = [];
+  const crit = con.filter(d => d.clase === 'Crítico').map(d => d.dron);
+  const aten = con.filter(d => d.clase === 'Atención').map(d => d.dron);
+  if (crit.length) rec.push('Recalibrar y revisar boquillas, filtros y bomba de: <b>' + crit.map(h_).join(', ') + '</b> antes de su próximo vuelo.');
+  if (aten.length) rec.push('Dar seguimiento en la próxima calibración a: <b>' + aten.map(h_).join(', ') + '</b>.');
+  if (!crit.length && !aten.length && con.length) rec.push('Todos los drones calibrados se mantienen en buen estado. Continuar con la rutina de calibración.');
+
+  return { desde: desde, hasta: hasta, tol: tol, total: tot, dentro: totDentro, drones: drones, hallazgos: hall, recomendaciones: rec, vuelos: vue.length };
+}
+
+function htmlReporte_(a, u) {
+  const col = { 'Bueno': '#2f8a46', 'Atención': '#b7791f', 'Crítico': '#c0392b', 'Sin calibraciones': '#6b7279' };
+  const th = 'style="background:#23272b;color:#fff;padding:6px 6px;text-align:left;font-size:11px;vertical-align:bottom"';
+  const td = 'style="padding:6px 6px;border-top:1px solid #dfe2dc;font-size:11px"';
+  const barra = v => {
+    const w = Math.max(0, Math.min(100, (v || 0) * 100));
+    return '<div style="background:#e9ebe6;border-radius:4px;height:8px;width:70px;display:inline-block;vertical-align:middle"><div style="background:' + (v >= 0.8 ? '#2f8a46' : v >= 0.5 ? '#b7791f' : '#c0392b') + ';height:8px;border-radius:4px;width:' + w.toFixed(0) + '%"></div></div>';
+  };
+  const filas = a.drones.map(d => '<tr>' +
+    '<td ' + td + '><b>' + h_(d.dron) + '</b></td>' +
+    '<td ' + td + '><span style="color:#fff;background:' + col[d.clase] + ';border-radius:10px;padding:2px 8px;font-weight:bold;font-size:11px">' + d.clase + '</span></td>' +
+    '<td ' + td + '>' + d.n + '</td>' +
+    '<td ' + td + '>' + (d.n ? barra(d.pctDentro) + ' ' + pa_(d.pctDentro, 0) : '—') + '</td>' +
+    '<td ' + td + '>' + p_(d.promB1) + '</td><td ' + td + '>' + p_(d.promB2) + '</td>' +
+    '<td ' + td + '>' + pa_(d.promAbsGen, 2) + '</td><td ' + td + '>' + pa_(d.maxAbs, 1) + '</td>' +
+    '<td ' + td + '>' + pa_(d.desbalance, 1) + '</td>' +
+    '<td ' + td + '>' + d.fuera1 + ' / ' + d.fuera2 + '</td>' +
+    '<td ' + td + '>' + d.tendencia + '</td>' +
+    '<td ' + td + '>' + (d.ultimo ? d.ultimo.fecha + ' ' + h_(d.ultimo.descarga) + ' · ' + (/DENTRO/i.test(d.ultimo.estado) ? 'OK' : 'FUERA') : '—') + '</td>' +
+    '</tr>').join('');
+  const conV = a.drones.filter(d => d.vuelos);
+  const filasV = conV.map(d => '<tr><td ' + td + '><b>' + h_(d.dron) + '</b></td><td ' + td + '>' + d.vuelos + '</td><td ' + td + '>' + p_(d.vueloVar) + '</td><td ' + td + '>' + pa_(d.vueloAbsVar, 2) + '</td><td ' + td + '>' + p_(d.vueloVarQ) + '</td><td ' + td + '>' + d.vuelosFuera + '</td></tr>').join('');
+  const kpi = (t, v, s) => '<td style="padding:6px"><div style="border:1px solid #dfe2dc;border-radius:10px;padding:10px 12px"><div style="font-size:11px;color:#6b7279;text-transform:uppercase;letter-spacing:.05em">' + t + '</div><div style="font-size:24px;font-weight:bold;color:#1b1e21">' + v + '</div><div style="font-size:11px;color:#6b7279">' + (s || '') + '</div></div></td>';
+  const nBuenos = a.drones.filter(d => d.clase === 'Bueno').length, nCrit = a.drones.filter(d => d.clase === 'Crítico').length;
+  return '<div style="font-family:Arial,Helvetica,sans-serif;color:#1b1e21;max-width:900px">' +
+    '<div style="background:#141618;color:#fff;padding:18px 20px;border-radius:12px 12px 0 0">' +
+    '<div style="font-size:12px;letter-spacing:.2em;color:#aeb4ba">INGENIO MADRE TIERRA · MALEZAS Y MADURANTES</div>' +
+    '<div style="font-size:22px;font-weight:bold;margin-top:4px">Reporte de calibración de boquillas por dron</div>' +
+    '<div style="font-size:13px;color:#aeb4ba;margin-top:4px">Período: ' + dmy_(a.desde) + ' al ' + dmy_(a.hasta) + ' · Tolerancia ±' + (a.tol * 100).toFixed(0) + '% · Generado por ' + h_(u.nombre) + ' el ' + Utilities.formatDate(new Date(), TZ, 'dd/MM/yyyy HH:mm') + '</div></div>' +
+    '<div style="border:1px solid #dfe2dc;border-top:0;padding:16px 14px;border-radius:0 0 12px 12px">' +
+    '<table style="width:100%;border-collapse:collapse"><tr>' +
+    kpi('Calibraciones', a.total, a.drones.filter(d => d.n).length + ' drones') +
+    kpi('Dentro de rango', a.total ? pa_(a.dentro / a.total, 0) : '—', a.dentro + ' de ' + a.total) +
+    kpi('Drones en buen estado', nBuenos, 'de ' + a.drones.filter(d => d.n).length) +
+    kpi('Drones críticos', nCrit, 'requieren recalibración') +
+    '</tr></table>' +
+    '<h3 style="margin:18px 6px 6px;font-size:16px">Hallazgos principales</h3><ul style="margin:0 6px 0 22px;padding:0;font-size:13px;line-height:1.6">' + a.hallazgos.map(x => '<li>' + x + '</li>').join('') + '</ul>' +
+    (a.recomendaciones.length ? '<h3 style="margin:18px 6px 6px;font-size:16px">Recomendaciones</h3><ul style="margin:0 6px 0 22px;padding:0;font-size:13px;line-height:1.6">' + a.recomendaciones.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '') +
+    '<h3 style="margin:18px 6px 8px;font-size:16px">Detalle por dron — calibraciones</h3>' +
+    '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><tr>' +
+    ['Dron', 'Estado', 'Calib.', '% dentro de rango', 'Var. prom. B1', 'Var. prom. B2', '|Var. gral.| prom.', 'Var. máx.', 'Desbalance B1–B2', 'Fuera B1 / B2', 'Tendencia', 'Última calibración'].map(x => '<th ' + th + '>' + x + '</th>').join('') +
+    '</tr>' + (filas || '<tr><td ' + td + ' colspan="12">Sin datos</td></tr>') + '</table></div>' +
+    (conV.length ? '<h3 style="margin:18px 6px 8px;font-size:16px">Vuelos del drone en el período</h3><table style="border-collapse:collapse;width:100%"><tr>' +
+      ['Dron', 'Vuelos', 'Var. L/ha prom.', '|Var. L/ha| prom.', 'Var. caudal prom.', 'Vuelos fuera de ±' + (a.tol * 100).toFixed(0) + '%'].map(x => '<th ' + th + '>' + x + '</th>').join('') + '</tr>' + filasV + '</table>' : '') +
+    '<p style="font-size:11px;color:#6b7279;margin:16px 6px 0;line-height:1.5"><b>Cómo leerlo:</b> la variación compara la descarga de cada boquilla con el caudal teórico por boquilla (L/ha × velocidad × ancho × 60 ÷ 10 000 ÷ 2). ' +
+    'Desbalance = |B1 − B2| ÷ caudal por boquilla. Tendencia compara la primera y la segunda mitad del período. ' +
+    'Estado: <b>Bueno</b> = 80% o más dentro de rango, variación promedio dentro de la tolerancia y última calibración OK; <b>Crítico</b> = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; <b>Atención</b> = el resto.</p>' +
+    '</div></div>';
+}
+
+function generarReporte_(u, desde, hasta, enviar) {
+  if (!u.esAdmin) return { ok: false, error: 'Solo el administrador puede generar reportes.' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(desde || '') || !/^\d{4}-\d{2}-\d{2}$/.test(hasta || '')) return { ok: false, error: 'Seleccione fecha inicial y final.' };
+  if (desde > hasta) return { ok: false, error: 'La fecha inicial es mayor que la final.' };
+  const a = analizar_(desde, hasta);
+  const html = htmlReporte_(a, u);
+  let enviadoA = '';
+  if (enviar) {
+    if (!u.correo) return { ok: false, error: 'Su usuario no tiene CORREO ELECTRONICO en la pestaña USUARIOS.' };
+    const nombre = 'Reporte_calibracion_' + desde + '_a_' + hasta + '.pdf';
+    const pdf = Utilities.newBlob('<html><head><meta charset="utf-8"></head><body>' + html + '</body></html>', 'text/html', 'r.html').getAs('application/pdf').setName(nombre);
+    MailApp.sendEmail({
+      to: u.correo,
+      subject: 'Reporte de calibración de boquillas · ' + dmy_(desde) + ' al ' + dmy_(hasta),
+      htmlBody: html,
+      attachments: [pdf],
+      name: 'Calibración de Boquillas · Ingenio Madre Tierra'
+    });
+    enviadoA = u.correo;
+  }
+  return { ok: true, enviadoA: enviadoA, html: html, resumen: { total: a.total, dentro: a.dentro, drones: a.drones.length } };
+}
+
 /* ---------- diagnóstico: abrir  URL_DE_LA_APP?action=diag ---------- */
 
 function diagnostico_() {
@@ -571,4 +737,5 @@ function diagnostico_() {
 function autorizar() {
   Logger.log(JSON.stringify(catalogos_(), null, 2));
   Logger.log(DriveApp.getFolderById(FOLDER_ID).getName());
+  Logger.log('Correos restantes hoy: ' + MailApp.getRemainingDailyQuota());
 }

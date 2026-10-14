@@ -13,6 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
+  const APK_URL = 'https://github.com/cobocuburjosue-glitch/CALIBRACION-DRONES/releases/download/apk/calibracion-drones.apk';
   /* =========== CONFIGURACIÓN: pegue aquí la URL de su Apps Script (termina en /exec) =========== */
   const API_URL = 'https://script.google.com/macros/s/AKfycbx85tTKwFvkPBKEod0q1lTb5rFN7nDxTHyYR7GPs2yQ26xttpHwFRhCu62gkkNxHxmgIw/exec';
 </script>
@@ -158,6 +159,14 @@ a{color:var(--accent)}
 .next p small{display:block;color:#aeb4ba;font-weight:400}
 .next .btn{width:auto;height:42px}
 .next .x{background:none;border:0;color:#aeb4ba;font-size:22px;cursor:pointer;padding:0 4px}
+.install{display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:transparent;border:1.5px solid #3f8f3a;color:#cfe8cc;border-radius:999px;height:40px;padding:0 18px;font-weight:600;cursor:pointer}
+.top-in .inst{border-color:#3f8f3a;color:#cfe8cc}
+.modal{position:fixed;inset:0;background:rgba(10,12,14,.6);display:grid;place-items:center;z-index:60;padding:16px}
+.modal .box{background:#fff;color:var(--text);border-radius:var(--radius);padding:22px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.modal h2{font-size:22px;text-transform:uppercase;margin-bottom:6px}
+.modal ol{padding-left:20px;margin:10px 0 16px;line-height:1.55;font-size:14px}
+.modal .row{display:flex;gap:10px}
+.rep-frame{width:100%;height:900px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .inline-actions{display:flex;gap:10px;margin-top:6px}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
@@ -182,6 +191,7 @@ a{color:var(--accent)}
       <button class="btn" id="bLogin" type="submit">Ingresar</button>
       <div class="err" id="lErr"></div>
     </form>
+    <button class="install hidden" type="button" data-install>⬇ Instalar app</button>
     <div class="foot">Ingenio Madre Tierra</div>
   </div>
 </section>
@@ -192,6 +202,7 @@ a{color:var(--accent)}
     <div class="top-in">
       <img src="logo.png" alt="">
       <div class="who"><b id="saludo">Hola</b><span id="cargo"></span></div>
+      <button class="inst hidden" type="button" data-install>Instalar app</button>
       <button id="bSalir" type="button">Salir</button>
     </div>
     <nav class="tabs"><div class="tabs-in" id="tabs">
@@ -200,6 +211,7 @@ a{color:var(--accent)}
       <button data-v="hoy">Hoy</button>
       <button data-v="flujos" class="hidden" id="tFlujos">Medidor de flujos</button>
       <button data-v="dash" class="hidden" id="tDash">Dashboard</button>
+      <button data-v="rep" class="hidden" id="tRep">Generar reportes</button>
     </div></nav>
   </header>
 
@@ -392,8 +404,42 @@ a{color:var(--accent)}
           <tbody id="dTabla"></tbody></table></div>
       </div>
     </div>
+    <!-- ---------- REPORTES ---------- -->
+    <div id="v-rep" class="hidden">
+      <div class="card">
+        <h2>Generar reportes <small>análisis de calibración de boquillas por dron</small></h2>
+        <div class="filters">
+          <div class="field"><label for="rDesde">Fecha inicial</label><input id="rDesde" type="date"></div>
+          <div class="field"><label for="rHasta">Fecha final</label><input id="rHasta" type="date"></div>
+          <div class="field" style="grid-column:span 2"><button class="btn" type="button" id="bReporte">Generar y enviar a mi correo</button></div>
+        </div>
+        <p class="note" id="rNota">El reporte se envía al correo del administrador registrado en la pestaña USUARIOS, con el PDF adjunto.</p>
+      </div>
+      <div class="card hidden" id="rCard">
+        <h2>Vista previa</h2>
+        <iframe class="rep-frame" id="rFrame" title="Reporte"></iframe>
+      </div>
+    </div>
   </main>
 </section>
+
+<div class="modal hidden" id="mInstalar" role="dialog" aria-modal="true">
+  <div class="box">
+    <h2>Instalar app</h2>
+    <p style="margin:0;color:var(--muted);font-size:14px">App de Calibración de Boquillas para Android.</p>
+    <p class="hidden" id="instNota" style="margin:10px 0 0;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:13px">La APK es para celulares Android: abra esta página desde el celular para instalarla.</p>
+    <ol>
+      <li>Toque <b>Descargar APK</b>.</li>
+      <li>Abra el archivo descargado <b>calibracion-drones.apk</b>.</li>
+      <li>Si Android lo pide, permita <b>“Instalar apps desconocidas”</b> para su navegador.</li>
+      <li>Toque <b>Instalar</b> y luego <b>Abrir</b>.</li>
+    </ol>
+    <div class="row">
+      <a class="btn" id="aApk" href="#" download>Descargar APK</a>
+      <button class="btn ghost" type="button" id="bCerrarInst">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -466,6 +512,9 @@ function entrar(user, cat){
   $('cargo').textContent = user.cargo || 'Malezas y Madurantes';
   $('tFlujos').classList.toggle('hidden', !user.permisos.flujos);
   $('tDash').classList.toggle('hidden', !user.permisos.dashboard);
+  $('tRep').classList.toggle('hidden', !user.esAdmin);
+  if(user.esAdmin && !$('rDesde').value){ const h=hoyISO(); $('rDesde').value=h.slice(0,8)+'01'; $('rHasta').value=h; }
+  if(user.correo) $('rNota').textContent=`El reporte se envía a ${user.correo} (correo del administrador en USUARIOS), con el PDF adjunto.`;
   llenarCatalogos();
   ver('calibrar');
 }
@@ -474,7 +523,7 @@ function entrar(user, cat){
 $('tabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) ver(b.dataset.v) });
 function ver(v){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  ['calibrar','vuelo','hoy','flujos','dash'].forEach(x=>$('v-'+x).classList.toggle('hidden',x!==v));
+  ['calibrar','vuelo','hoy','flujos','dash','rep'].forEach(x=>$('v-'+x).classList.toggle('hidden',x!==v));
   if(v==='hoy') cargarHoy();
   if(v==='vuelo'){ calcVuelo(); cargarVuelos(); }
   if(v==='flujos') calcFlujos();
@@ -710,6 +759,33 @@ async function cargarVuelos(){
     }</tbody></table></div>`;
   }catch(e){ box.className='empty'; box.textContent=e.message; }
 }
+
+/* ================= reportes ================= */
+$('bReporte').onclick=async()=>{
+  const d=$('rDesde').value, h=$('rHasta').value;
+  if(!d||!h) return toast('Seleccione fecha inicial y final',1);
+  if(d>h) return toast('La fecha inicial es mayor que la final',1);
+  const b=$('bReporte'); b.disabled=true; b.innerHTML='<span class="spin"></span>Analizando y enviando…';
+  try{
+    const j=await api('reporte',{desde:d,hasta:h});
+    $('rFrame').srcdoc='<!doctype html><meta charset="utf-8"><body style="margin:12px;background:#fff">'+j.html+'</body>';
+    $('rCard').classList.remove('hidden');
+    toast(`✓ Reporte enviado a ${j.enviadoA}`);
+  }catch(e){ toast(e.message,1) }
+  b.disabled=false; b.textContent='Generar y enviar a mi correo';
+};
+
+/* ================= instalar app (APK) ================= */
+const enApk = /CalibracionMTApp/.test(navigator.userAgent);
+const enAndroid = /Android/i.test(navigator.userAgent);
+$('aApk').href = APK_URL;
+if(!enAndroid) $('instNota').classList.remove('hidden');
+document.querySelectorAll('[data-install]').forEach(b=>{
+  b.classList.toggle('hidden', enApk);
+  b.onclick=()=>$('mInstalar').classList.remove('hidden');
+});
+$('bCerrarInst').onclick=()=>$('mInstalar').classList.add('hidden');
+$('mInstalar').addEventListener('click',e=>{ if(e.target.id==='mInstalar') $('mInstalar').classList.add('hidden'); });
 
 /* ================= dashboard ================= */
 function toISO(dmy){ const m=String(dmy).match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?`${m[3]}-${m[2]}-${m[1]}`:''; }
