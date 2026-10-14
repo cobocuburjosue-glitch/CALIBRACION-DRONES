@@ -167,6 +167,22 @@ a{color:var(--accent)}
 .modal ol{padding-left:20px;margin:10px 0 16px;line-height:1.55;font-size:14px}
 .modal .row{display:flex;gap:10px}
 .rep-frame{width:100%;height:900px;border:1px solid var(--line);border-radius:10px;background:#fff}
+textarea{width:100%;min-height:76px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;outline:none;resize:vertical;font:inherit;color:inherit}
+textarea:focus{border-color:var(--accent)}
+.adminp{margin-top:12px;border:1.5px dashed var(--accent);border-radius:12px;padding:12px;background:var(--accent-soft)}
+.adminp .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+.adminp .hd b{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.adminp .hd button{background:#fff;border:1px solid var(--accent);color:var(--accent);border-radius:8px;height:30px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer}
+.adminp .field{margin-bottom:0}
+.tag-man{display:inline-block;background:var(--warn-soft);color:var(--warn);border-radius:6px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px;vertical-align:middle}
+.ed{background:none;border:1px solid var(--line);border-radius:8px;width:32px;height:28px;cursor:pointer;font-size:14px;line-height:1}
+.ed:hover{border-color:var(--accent);color:var(--accent)}
+td.obs{white-space:normal;min-width:180px;max-width:320px;color:var(--muted);font-size:12px}
+.modal .box.big{max-width:620px;max-height:calc(100vh - 32px);overflow:auto}
+.modal .grid2 .field{margin-bottom:12px}
+.sec-h{display:flex;align-items:baseline;gap:10px;margin:8px 0 12px}
+.sec-h h2{font-size:22px;text-transform:uppercase}
+.sec-h span{color:var(--muted);font-size:13px}
 .inline-actions{display:flex;gap:10px;margin-top:6px}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
@@ -233,7 +249,7 @@ a{color:var(--accent)}
               <div class="field"><label for="cLabor">Labor</label><select id="cLabor" required></select></div>
               <div class="field"><label for="cTiempo">Tiempo de calibración (min)</label><input id="cTiempo" type="number" inputmode="decimal" step="0.1" min="0.1" value="1" required></div>
             </div>
-            <label>Datos automáticos</label>
+            <label>Datos automáticos <span class="tag-man hidden" id="tagMan">PARÁMETROS MANUALES</span></label>
             <div class="auto">
               <div><small>L/ha teórico</small><b id="aLha">—</b></div>
               <div><small>Velocidad</small><b id="aVel">—</b></div>
@@ -241,6 +257,15 @@ a{color:var(--accent)}
               <div><small>Ancho de faja</small><b id="aAncho">—</b></div>
               <div><small>Caudal total</small><b id="aCaudal">—</b></div>
               <div><small>Caudal / boquilla</small><b id="aQb">—</b></div>
+            </div>
+            <div class="adminp hidden" id="adminParams">
+              <div class="hd"><b>Parámetros (administrador)</b><button type="button" id="bRestaurar">Restaurar automáticos</button></div>
+              <div class="grid3">
+                <div class="field"><label for="pLha">L/ha teórico</label><input id="pLha" type="number" step="0.1" inputmode="decimal"></div>
+                <div class="field"><label for="pVel">Velocidad (m/s)</label><input id="pVel" type="number" step="0.1" inputmode="decimal"></div>
+                <div class="field"><label for="pAncho">Ancho de faja (m)</label><input id="pAncho" type="number" step="0.1" inputmode="decimal"></div>
+              </div>
+              <p class="note" id="pNota" style="margin-bottom:0">Puede cambiar estos valores para calcular con otros parámetros. Quedará marcado como "MANUAL" en la hoja.</p>
             </div>
           </div>
 
@@ -283,6 +308,10 @@ a{color:var(--accent)}
             </label>
             <input id="cFoto" type="file" accept="image/*" capture="environment" class="hidden">
           </div>
+          <div class="card">
+            <h2>Observaciones <small>opcional</small></h2>
+            <textarea id="cObs" maxlength="500" placeholder="Ej.: se limpió el filtro de la boquilla 2 antes de calibrar; viento fuerte; se cambió la boquilla…"></textarea>
+          </div>
           <button class="btn" id="bGuardar" type="submit">Guardar calibración</button>
           <div class="inline-actions"><button class="btn ghost" type="button" id="bLimpiar">Limpiar boquillas</button></div>
         </div>
@@ -305,7 +334,9 @@ a{color:var(--accent)}
             <div class="field"><label for="vAreaReal">Área real (ha)</label><input id="vAreaReal" type="number" step="0.01" inputmode="decimal"></div>
             <div class="field"><label for="vAplic">Lts aplicados (L)</label><input id="vAplic" type="number" step="0.01" inputmode="decimal"></div>
             <div class="field"><label for="vDev">Lts devueltos (L)</label><input id="vDev" type="number" step="0.01" inputmode="decimal"></div>
+            <div class="field hidden" id="vLhaBox"><label for="vLha">L/ha teórico (administrador)</label><input id="vLha" type="number" step="0.1" inputmode="decimal"></div>
           </div>
+          <div class="field"><label for="vObs">Observaciones (opcional)</label><textarea id="vObs" maxlength="500" placeholder="Ej.: viento cruzado, se pausó el vuelo, se cambió batería…"></textarea></div>
         </div>
         <div>
           <div class="card">
@@ -400,8 +431,26 @@ a{color:var(--accent)}
       <div class="card">
         <h2>Registros</h2>
         <div class="tw" style="max-height:480px"><table>
-          <thead><tr><th>Fecha</th><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>B1</th><th>B2</th><th>Var B1</th><th>Var B2</th><th>Var gral.</th><th>Mín–Máx</th><th>Estado</th><th>Foto</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>B1</th><th>B2</th><th>Var B1</th><th>Var B2</th><th>Var gral.</th><th>Mín–Máx</th><th>Estado</th><th>Foto</th><th>Observaciones</th><th class="adm"></th></tr></thead>
           <tbody id="dTabla"></tbody></table></div>
+      </div>
+
+      <div class="sec-h"><h2>Comportamiento del vuelo</h2><span>según los vuelos registrados en el período</span></div>
+      <div class="kpis">
+        <div class="kpi"><small>Vuelos</small><b id="kvTot">—</b><span id="kvTotS"></span></div>
+        <div class="kpi"><small>Dentro de rango L/ha</small><b id="kvOk">—</b><span id="kvOkS"></span></div>
+        <div class="kpi"><small>Var. L/ha promedio</small><b id="kvVar">—</b><span>real vs teórico</span></div>
+        <div class="kpi"><small>Var. caudal promedio</small><b id="kvQ">—</b><span>aplicado vs consumo</span></div>
+      </div>
+      <div class="cols">
+        <div class="card"><h2>L/ha real vs teórico <small>promedio por dron</small></h2><div class="chartbox"><canvas id="ch3"></canvas></div></div>
+        <div class="card"><h2>Variación L/ha por vuelo</h2><div class="chartbox"><canvas id="ch4"></canvas></div></div>
+      </div>
+      <div class="card">
+        <h2>Vuelos</h2>
+        <div class="tw" style="max-height:420px"><table>
+          <thead><tr><th>Fecha</th><th>Dron</th><th>Labor</th><th>Calib.</th><th>Área real</th><th>Aplicados</th><th>L/ha teó.</th><th>L/ha real</th><th>% Var</th><th>% Var caudal</th><th>Observaciones</th><th class="adm"></th></tr></thead>
+          <tbody id="dvTabla"></tbody></table></div>
       </div>
     </div>
     <!-- ---------- REPORTES ---------- -->
@@ -422,6 +471,20 @@ a{color:var(--accent)}
     </div>
   </main>
 </section>
+
+<div class="modal hidden" id="mEditar" role="dialog" aria-modal="true">
+  <form class="box big" id="fEditar" novalidate>
+    <h2 id="eTitulo">Editar registro</h2>
+    <p class="note" id="eSub" style="margin:0 0 12px"></p>
+    <div class="grid2" id="eCampos"></div>
+    <div class="field"><label for="eObs">Observaciones</label><textarea id="eObs" maxlength="500"></textarea></div>
+    <div class="res" id="eRes" style="margin-bottom:14px"></div>
+    <div class="row" style="display:flex;gap:10px">
+      <button class="btn" type="submit" id="bEGuardar">Guardar cambios</button>
+      <button class="btn ghost" type="button" id="bECerrar">Cancelar</button>
+    </div>
+  </form>
+</div>
 
 <div class="modal hidden" id="mInstalar" role="dialog" aria-modal="true">
   <div class="box">
@@ -551,6 +614,10 @@ function llenarCatalogos(){
   $('vDron').innerHTML = opts(c.drones.map(d=>d.dron), store.get('cal_dron')||'', 'Seleccione…');
   $('vLabor').innerHTML = opts(c.labores.map(l=>l.labor), store.get('cal_labor')||'', 'Seleccione…', lhaTxt);
   $('vFecha').value = hoyISO();
+  $('adminParams').classList.toggle('hidden', !S.user.esAdmin);
+  $('vLhaBox').classList.toggle('hidden', !S.user.esAdmin);
+  document.querySelectorAll('th.adm').forEach(x=>x.classList.toggle('hidden', !S.user.esAdmin));
+  llenarParams();
   $('mDron').innerHTML = opts(c.drones.map(d=>d.dron), '', 'Manual');
   $('mLabor').innerHTML = opts(c.labores.map(l=>l.labor), '', 'Manual', lhaTxt);
   $('dDron').innerHTML = '<option value="">Todos</option>' + c.drones.map(d=>`<option>${esc(d.dron)}</option>`).join('');
@@ -559,12 +626,25 @@ function llenarCatalogos(){
 }
 
 /* ================= cálculo en vivo ================= */
+function llenarParams(){
+  const d=S.cat.drones.find(x=>x.dron===$('cDron').value), l=S.cat.labores.find(x=>x.labor===$('cLabor').value);
+  $('pVel').value = d? d.vel : ''; $('pAncho').value = d? d.ancho : ''; $('pLha').value = l? l.lha : '';
+}
+function paramsAdmin(dron, lab){
+  // devuelve {vel, ancho, lha, manual} usando lo que escribió el administrador
+  const p={ vel:dron.vel, ancho:dron.ancho, lha:lab.lha, manual:false };
+  if(!S.user||!S.user.esAdmin) return p;
+  [['vel','pVel'],['ancho','pAncho'],['lha','pLha']].forEach(([k,id])=>{ const v=parseFloat($(id).value); if(v>0 && Math.abs(v-p[k])>1e-9){ p[k]=v; p.manual=true; } });
+  return p;
+}
 function calcular(){
-  const dron = S.cat.drones.find(d=>d.dron===$('cDron').value);
-  const lab  = S.cat.labores.find(l=>l.labor===$('cLabor').value);
+  const dron0 = S.cat.drones.find(d=>d.dron===$('cDron').value);
+  const lab0  = S.cat.labores.find(l=>l.labor===$('cLabor').value);
+  let dron=dron0, lab=lab0, manual=false;
+  if(dron0 && lab0){ const p=paramsAdmin(dron0,lab0); manual=p.manual; dron=Object.assign({},dron0,{vel:p.vel,ancho:p.ancho}); lab=Object.assign({},lab0,{lha:p.lha}); }
   const t = parseFloat($('cTiempo').value)||1;
   const tol = S.cat.flujos.variacion;
-  const r = { dron, lab, t, tol };
+  const r = { dron, lab, t, tol, manual };
   if(dron && lab){
     r.caudal = lab.lha*dron.vel*dron.ancho*60/10000;
     r.qb = r.caudal/2; r.min=r.qb*(1-tol); r.max=r.qb*(1+tol);
@@ -591,6 +671,7 @@ function recalcular(){
   if(!S.cat) return;
   const r=calcular();
   $('aLha').textContent = r.lab ? f(r.lab.lha,2)+' L/ha' : '—';
+  $('tagMan').classList.toggle('hidden', !r.manual);
   $('aVel').textContent = r.dron ? f(r.dron.vel,2)+' m/s' : '—';
   $('aKmh').textContent = r.dron ? f(r.dron.vel*3.6,2)+' km/h' : '—';
   $('aAncho').textContent = r.dron ? f(r.dron.ancho,2)+' m' : '—';
@@ -611,7 +692,9 @@ function recalcular(){
     est.className='status idle'; est.textContent = r.qb==null ? 'Seleccione dron y labor' : 'Ingrese ambas boquillas';
   }
 }
-['cDron','cLabor','cTiempo','cB1','cB2'].forEach(id=>{ $(id).addEventListener('input',recalcular); $(id).addEventListener('change',recalcular); });
+['cTiempo','cB1','cB2','pLha','pVel','pAncho'].forEach(id=>{ $(id).addEventListener('input',recalcular); $(id).addEventListener('change',recalcular); });
+['cDron','cLabor'].forEach(id=>$(id).addEventListener('change',()=>{ llenarParams(); recalcular(); }));
+$('bRestaurar').onclick=()=>{ llenarParams(); recalcular(); };
 $('cDron').addEventListener('change',()=>store.set('cal_dron',$('cDron').value));
 $('cLabor').addEventListener('change',()=>store.set('cal_labor',$('cLabor').value));
 $('bLimpiar').onclick=()=>{ $('cB1').value=''; $('cB2').value=''; quitarFoto(); recalcular(); $('cB1').focus(); };
@@ -652,13 +735,14 @@ $('fCal').addEventListener('submit', async ev=>{
   try{
     const j = await api('guardar',{datos:{
       fecha:$('cFecha').value, supervisor:$('cSup').value, dron:r.dron.dron, labor:r.lab.labor,
-      tiempo:parseFloat($('cTiempo').value)||1, b1:parseFloat($('cB1').value), b2:parseFloat($('cB2').value), foto:S.foto
+      tiempo:parseFloat($('cTiempo').value)||1, b1:parseFloat($('cB1').value), b2:parseFloat($('cB2').value), foto:S.foto,
+      observaciones:$('cObs').value, vel:r.dron.vel, ancho:r.dron.ancho, lha:r.lab.lha
     }});
     toast(`✓ Guardado: ${r.dron.dron} · descarga ${j.descarga} · ${j.calculo.estado.toLowerCase()}`);
     S.ultCal = { dron:r.dron.dron, labor:r.lab.labor, fecha:$('cFecha').value, supervisor:$('cSup').value, descarga:j.descarga };
     $('nvTxt').textContent = `Calibración ${j.descarga} de ${r.dron.dron} guardada.`;
     $('nextVuelo').classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'});
-    $('cB1').value=''; $('cB2').value=''; quitarFoto(); recalcular(); S.dash=[];
+    $('cB1').value=''; $('cB2').value=''; $('cObs').value=''; quitarFoto(); recalcular(); S.dash=[];
   }catch(e){ toast(e.message,1) }
   b.disabled=false; b.textContent='Guardar calibración';
 });
@@ -671,8 +755,10 @@ async function cargarHoy(){
     const j=await api('hoy');
     if(!j.registros.length){ $('hoyBody').textContent='Aún no hay calibraciones registradas hoy.'; return; }
     $('hoyBody').className='';
-    $('hoyBody').innerHTML = `<div class="tw"><table><thead><tr><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>B1</th><th>B2</th><th>Var gral.</th><th>Estado</th></tr></thead><tbody>${
-      j.registros.slice().reverse().map(x=>`<tr><td>${esc(x.descarga)}</td><td><b>${esc(x.dron)}</b></td><td>${esc(x.labor)}</td><td>${esc(x.supervisor)}</td><td>${f(x.b1)}</td><td>${f(x.b2)}</td><td>${pct(x.varGeneral)}</td><td>${pill(x.estado)}</td></tr>`).join('')
+    S.hoy=j.registros;
+    const adm=S.user.esAdmin;
+    $('hoyBody').innerHTML = `<div class="tw"><table><thead><tr><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>B1</th><th>B2</th><th>Var gral.</th><th>Estado</th><th>Observaciones</th>${adm?'<th></th>':''}</tr></thead><tbody>${
+      j.registros.slice().reverse().map(x=>`<tr><td>${esc(x.descarga)}</td><td><b>${esc(x.dron)}</b>${/MANUAL/i.test(x.parametros)?'<span class="tag-man">MANUAL</span>':''}</td><td>${esc(x.labor)}</td><td>${esc(x.supervisor)}</td><td>${f(x.b1)}</td><td>${f(x.b2)}</td><td>${pct(x.varGeneral)}</td><td>${pill(x.estado)}</td><td class="obs">${esc(x.observaciones)}</td>${adm?`<td><button class="ed" type="button" title="Editar" data-ecal="${x.fila}">✎</button></td>`:''}</tr>`).join('')
     }</tbody></table></div>`;
   }catch(e){ $('hoyBody').textContent=e.message }
 }
@@ -709,7 +795,7 @@ $('mLabor').addEventListener('change',()=>{ const l=S.cat.labores.find(x=>x.labo
 $('bNoVuelo').onclick=()=>$('nextVuelo').classList.add('hidden');
 $('bIrVuelo').onclick=()=>{
   const u=S.ultCal; if(!u) return;
-  $('vDron').value=u.dron; $('vLabor').value=u.labor; $('vFecha').value=u.fecha; if(u.supervisor) $('vSup').value=u.supervisor;
+  $('vDron').value=u.dron; $('vLabor').value=u.labor; { const l=S.cat.labores.find(x=>x.labor===u.labor); $('vLha').value=l?l.lha:''; } $('vFecha').value=u.fecha; if(u.supervisor) $('vSup').value=u.supervisor;
   S.vueloCal=u.descarga; $('vCalTxt').textContent=`desde calibración ${u.descarga}`;
   $('nextVuelo').classList.add('hidden'); ver('vuelo'); $('vAreaPol').focus();
 };
@@ -717,7 +803,8 @@ function calcVuelo(){
   const g=id=>parseFloat($(id).value);
   const lab=S.cat&&S.cat.labores.find(l=>l.labor===$('vLabor').value);
   const tol=S.cat?S.cat.flujos.variacion:.05;
-  const teo=lab?lab.lha:NaN, carga=g('vCarga'), ar=g('vAreaReal'), ap=g('vAplic'), dev=g('vDev');
+  const lhaAdm=parseFloat($('vLha').value);
+  const teo=lab?(S.user&&S.user.esAdmin&&lhaAdm>0?lhaAdm:lab.lha):NaN, carga=g('vCarga'), ar=g('vAreaReal'), ap=g('vAplic'), dev=g('vDev');
   $('vrTeo').textContent = lab? f(teo,2)+' L/ha':'—';
   const cons = !isNaN(carga)&&!isNaN(dev) ? carga-dev : NaN;
   $('vrCons').textContent = isNaN(cons)?'—':f(cons,2)+' L';
@@ -731,7 +818,8 @@ function calcVuelo(){
   if(isNaN(vr)){ e.className='status idle'; e.textContent= lab?'Complete los datos del vuelo':'Seleccione la labor'; }
   else { const ok=Math.abs(vr)<=tol; e.className='status '+(ok?'ok':'bad'); e.textContent= ok?`Dentro de ±${(tol*100).toFixed(0)}%`:`Fuera de ±${(tol*100).toFixed(0)}%`; }
 }
-['vLabor','vCarga','vAreaReal','vAplic','vDev'].forEach(id=>{ $(id).addEventListener('input',calcVuelo); $(id).addEventListener('change',calcVuelo); });
+$('vLabor').addEventListener('change',()=>{ const l=S.cat.labores.find(x=>x.labor===$('vLabor').value); $('vLha').value=l?l.lha:''; });
+['vLabor','vCarga','vAreaReal','vAplic','vDev','vLha'].forEach(id=>{ $(id).addEventListener('input',calcVuelo); $(id).addEventListener('change',calcVuelo); });
 $('fVuelo').addEventListener('submit', async ev=>{
   ev.preventDefault();
   const g=id=>$(id).value;
@@ -741,9 +829,10 @@ $('fVuelo').addEventListener('submit', async ev=>{
   const b=$('bGuardarVuelo'); b.disabled=true; b.innerHTML='<span class="spin"></span>Guardando…';
   try{
     const j=await api('guardarVuelo',{datos:{ fecha:g('vFecha'), supervisor:g('vSup'), dron:g('vDron'), labor:g('vLabor'), calibracion:S.vueloCal||'',
-      areaPoligono:g('vAreaPol'), distanciaMax:g('vDist'), carga:g('vCarga'), areaReal:g('vAreaReal'), aplicados:g('vAplic'), devueltos:g('vDev') }});
+      areaPoligono:g('vAreaPol'), distanciaMax:g('vDist'), carga:g('vCarga'), areaReal:g('vAreaReal'), aplicados:g('vAplic'), devueltos:g('vDev'),
+      lha:g('vLha'), observaciones:g('vObs') }});
     toast(`✓ Vuelo guardado: ${g('vDron')} · ${f(j.calculo.lhaReal,2)} L/ha real (${pct(j.calculo.variacion)})`);
-    ['vAreaPol','vDist','vCarga','vAreaReal','vAplic','vDev'].forEach(id=>$(id).value='');
+    ['vAreaPol','vDist','vCarga','vAreaReal','vAplic','vDev','vObs'].forEach(id=>$(id).value='');
     S.vueloCal=''; $('vCalTxt').textContent=''; calcVuelo(); cargarVuelos();
   }catch(e){ toast(e.message,1) }
   b.disabled=false; b.textContent='Guardar vuelo';
@@ -755,8 +844,9 @@ async function cargarVuelos(){
     if(!j.vuelos.length){ box.className='empty'; box.textContent='Aún no hay vuelos registrados.'; return; }
     box.className='';
     const c=x=>x==null?'':(Math.abs(x)<=tol?'v-ok':'v-bad');
-    box.innerHTML=`<div class="tw" style="max-height:420px"><table><thead><tr><th>Fecha</th><th>Dron</th><th>Labor</th><th>Área pol.</th><th>Dist. máx</th><th>Carga</th><th>Área real</th><th>Aplicados</th><th>Devueltos</th><th>L/ha teó.</th><th>L/ha real</th><th>% Var</th><th>% Var caudal</th></tr></thead><tbody>${
-      j.vuelos.map(v=>`<tr><td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${f(v.areaPoligono,2)}</td><td>${f(v.distanciaMax,0)}</td><td>${f(v.carga,1)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td><td>${f(v.devueltos,2)}</td><td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${c(v.variacion)}"><b>${pct(v.variacion)}</b></td><td class="${c(v.varCaudal)}">${pct(v.varCaudal)}</td></tr>`).join('')
+    S.vuelosLista=j.vuelos; const adm=S.user.esAdmin;
+    box.innerHTML=`<div class="tw" style="max-height:420px"><table><thead><tr><th>Fecha</th><th>Dron</th><th>Labor</th><th>Área pol.</th><th>Dist. máx</th><th>Carga</th><th>Área real</th><th>Aplicados</th><th>Devueltos</th><th>L/ha teó.</th><th>L/ha real</th><th>% Var</th><th>% Var caudal</th><th>Observaciones</th>${adm?'<th></th>':''}</tr></thead><tbody>${
+      j.vuelos.map(v=>`<tr><td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${f(v.areaPoligono,2)}</td><td>${f(v.distanciaMax,0)}</td><td>${f(v.carga,1)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td><td>${f(v.devueltos,2)}</td><td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${c(v.variacion)}"><b>${pct(v.variacion)}</b></td><td class="${c(v.varCaudal)}">${pct(v.varCaudal)}</td><td class="obs">${esc(v.observaciones)}</td>${adm?`<td><button class="ed" type="button" title="Editar" data-evue="${v.fila}">✎</button></td>`:''}</tr>`).join('')
     }</tbody></table></div>`;
   }catch(e){ box.className='empty'; box.textContent=e.message; }
 }
@@ -795,6 +885,7 @@ async function cargarDash(){
   try{
     const j=await api('dashboard');
     S.dash=j.registros.map(r=>Object.assign(r,{iso:toISO(r.fecha)}));
+    S.dashV=(j.vuelos||[]).map(v=>Object.assign(v,{iso:toISO(v.fecha)}));
     if(!$('dDesde').value && S.dash.length){
       const d=new Date(hoyISO()+'T12:00'); d.setDate(d.getDate()-30); $('dDesde').value=d.toISOString().slice(0,10);
     }
@@ -846,9 +937,129 @@ function pintarDash(){
   $('dTabla').innerHTML = rows.length ? rows.slice().sort((a,b)=>key(b).localeCompare(key(a))).map(r=>`<tr>
     <td>${esc(r.fecha)}</td><td>${esc(r.descarga)}</td><td><b>${esc(r.dron)}</b></td><td>${esc(r.labor)}</td><td>${esc(r.supervisor)}</td>
     <td>${f(r.b1)}</td><td>${f(r.b2)}</td><td>${pct(r.varB1)}</td><td>${pct(r.varB2)}</td><td>${pct(r.varGeneral)}</td>
-    <td>${f(r.min)} – ${f(r.max)}</td><td>${pill(r.estado)}</td><td>${/^https?:/.test(r.foto)?`<a href="${esc(r.foto)}" target="_blank" rel="noopener">Ver</a>`:''}</td></tr>`).join('')
-    : '<tr><td colspan="13" class="empty">Sin registros</td></tr>';
+    <td>${f(r.min)} – ${f(r.max)}</td><td>${pill(r.estado)}</td><td>${/^https?:/.test(r.foto)?`<a href="${esc(r.foto)}" target="_blank" rel="noopener">Ver</a>`:''}</td>
+    <td class="obs">${esc(r.observaciones)}</td>${S.user.esAdmin?`<td><button class="ed" type="button" title="Editar" data-ecal="${r.fila}">✎</button></td>`:''}</tr>`).join('')
+    : '<tr><td colspan="15" class="empty">Sin registros</td></tr>';
+  pintarVuelosDash(de,ha,dr);
 }
+function pintarVuelosDash(de,ha,dr){
+  const tol=S.cat.flujos.variacion;
+  const vs=(S.dashV||[]).filter(v=>(!de||v.iso>=de)&&(!ha||v.iso<=ha)&&(!dr||v.dron===dr));
+  const okv=vs.filter(v=>v.variacion!=null&&Math.abs(v.variacion)<=tol).length;
+  const avg=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:NaN;
+  const vv=vs.map(v=>v.variacion).filter(x=>x!=null), vq=vs.map(v=>v.varCaudal).filter(x=>x!=null);
+  $('kvTot').textContent=vs.length; $('kvTotS').textContent=`${new Set(vs.map(v=>v.dron)).size} drones`;
+  $('kvOk').textContent=vs.length?Math.round(okv/vs.length*100)+'%':'—'; $('kvOkS').textContent=`${okv} de ${vs.length} dentro de ±${(tol*100).toFixed(0)}%`;
+  $('kvVar').textContent=vv.length?pct(avg(vv)):'—'; $('kvQ').textContent=vq.length?pct(avg(vq)):'—';
+  const drones=[...new Set(vs.map(v=>v.dron))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));
+  const pr=(d,k)=>{ const a=vs.filter(v=>v.dron===d&&v[k]!=null).map(v=>v[k]); return a.length? +avg(a).toFixed(2):null; };
+  dibujar('ch3',{type:'bar',data:{labels:drones,datasets:[
+    {label:'L/ha real',data:drones.map(d=>pr(d,'lhaReal')),backgroundColor:drones.map(d=>{ const a=vs.filter(v=>v.dron===d&&v.variacion!=null).map(v=>v.variacion); return Math.abs(avg(a))<=tol?'#3f8f3a':'#c0392b'; }),borderRadius:4},
+    {type:'line',label:'L/ha teórico',data:drones.map(d=>pr(d,'lhaTeorico')),borderColor:'#141618',borderDash:[5,4],pointRadius:3,pointBackgroundColor:'#141618',borderWidth:1.5}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':c.parsed.y.toFixed(2)} L/ha`}}},scales:{y:{beginAtZero:false,grid:{color:'#eceee9'},title:{display:true,text:'L/ha'}},x:{grid:{display:false}}}}});
+  const orden=vs.slice().sort((a,b)=>a.iso<b.iso?-1:a.iso>b.iso?1:a.fila-b.fila);
+  dibujar('ch4',{type:'bar',data:{labels:orden.map(v=>v.dron+' '+v.fecha.slice(0,5)),datasets:[
+    {label:'% Var L/ha',data:orden.map(v=>v.variacion==null?null:+(v.variacion*100).toFixed(2)),backgroundColor:orden.map(v=>v.variacion!=null&&Math.abs(v.variacion)<=tol?'#3f8f3a':'#c0392b'),borderRadius:3},
+    {type:'line',label:`+${(tol*100).toFixed(0)}%`,data:orden.map(()=>tol*100),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.2},
+    {type:'line',label:`−${(tol*100).toFixed(0)}%`,data:orden.map(()=>-tol*100),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.2}
+  ]},options:opcionesPct()});
+  const cl=x=>x==null?'':(Math.abs(x)<=tol?'v-ok':'v-bad');
+  $('dvTabla').innerHTML = vs.length ? vs.slice().sort((a,b)=>a.iso<b.iso?1:a.iso>b.iso?-1:b.fila-a.fila).map(v=>`<tr>
+    <td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${esc(v.calibracion)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td>
+    <td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${cl(v.variacion)}"><b>${pct(v.variacion)}</b></td><td class="${cl(v.varCaudal)}">${pct(v.varCaudal)}</td>
+    <td class="obs">${esc(v.observaciones)}</td>${S.user.esAdmin?`<td><button class="ed" type="button" title="Editar" data-evue="${v.fila}">✎</button></td>`:''}</tr>`).join('')
+    : '<tr><td colspan="12" class="empty">Sin vuelos en el período</td></tr>';
+}
+
+/* ================= editar registros (administrador) ================= */
+const E={tipo:null,reg:null};
+function campoE(id,label,val,tipo,opciones){
+  if(opciones) return `<div class="field"><label for="${id}">${label}</label><select id="${id}">${opciones.map(o=>`<option value="${esc(o)}" ${o===val?'selected':''}>${esc(o)}</option>`).join('')}</select></div>`;
+  return `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${tipo||'number'}" step="any" inputmode="decimal" value="${val==null?'':esc(val)}"></div>`;
+}
+function buscarReg(lista,fila){ return (lista||[]).find(x=>x.fila===fila); }
+function abrirEditarCal(fila){
+  const r=buscarReg(S.hoy,fila)||buscarReg(S.dash,fila); if(!r) return;
+  E.tipo='cal'; E.reg=r;
+  $('eTitulo').textContent=`Editar calibración ${r.descarga}`;
+  $('eSub').textContent=`${r.fecha} · ${r.dron} · registrado por ${r.registradoPor||'—'}${r.editadoPor?' · última edición: '+r.editadoPor:''}`;
+  $('eCampos').innerHTML=
+    campoE('eDron','Dron',r.dron,null,S.cat.drones.map(d=>d.dron))+
+    campoE('eLabor','Labor',r.labor,null,S.cat.labores.map(l=>l.labor))+
+    campoE('eSup','Supervisor',r.supervisor,null,[...new Set(S.cat.supervisores.concat(r.supervisor?[r.supervisor]:[]))])+
+    campoE('eTiempo','Tiempo (min)',r.tiempo)+
+    campoE('eB1','Boquilla 1 (L/min)',r.b1)+campoE('eB2','Boquilla 2 (L/min)',r.b2)+
+    campoE('eLha','L/ha teórico',r.lhaTeorico)+campoE('eVel','Velocidad (m/s)',r.velMs)+
+    campoE('eAncho','Ancho de faja (m)',r.ancho);
+  $('eObs').value=r.observaciones||'';
+  ['eDron','eLabor'].forEach(id=>$(id).addEventListener('change',()=>{
+    const d=S.cat.drones.find(x=>x.dron===$('eDron').value), l=S.cat.labores.find(x=>x.labor===$('eLabor').value);
+    if(id==='eDron'&&d){ $('eVel').value=d.vel; $('eAncho').value=d.ancho; }
+    if(id==='eLabor'&&l){ $('eLha').value=l.lha; }
+    previewE();
+  }));
+  $('eCampos').querySelectorAll('input').forEach(x=>x.addEventListener('input',previewE));
+  previewE(); $('mEditar').classList.remove('hidden');
+}
+function abrirEditarVue(fila){
+  const v=buscarReg(S.vuelosLista,fila)||buscarReg(S.dashV,fila); if(!v) return;
+  E.tipo='vue'; E.reg=v;
+  $('eTitulo').textContent='Editar vuelo';
+  $('eSub').textContent=`${v.fecha} · ${v.dron}${v.calibracion?' · calibración '+v.calibracion:''} · registrado por ${v.registradoPor||'—'}${v.editadoPor?' · última edición: '+v.editadoPor:''}`;
+  $('eCampos').innerHTML=
+    campoE('eDron','Dron',v.dron,null,S.cat.drones.map(d=>d.dron))+
+    campoE('eLabor','Labor',v.labor,null,S.cat.labores.map(l=>l.labor))+
+    campoE('eLha','L/ha teórico',v.lhaTeorico)+
+    campoE('eAreaPol','Área del polígono (ha)',v.areaPoligono)+campoE('eDist','Distancia máx. (m)',v.distanciaMax)+
+    campoE('eCarga','Carga inicial (L)',v.carga)+campoE('eAreaReal','Área real (ha)',v.areaReal)+
+    campoE('eAplic','Lts aplicados (L)',v.aplicados)+campoE('eDev','Lts devueltos (L)',v.devueltos);
+  $('eObs').value=v.observaciones||'';
+  $('eLabor').addEventListener('change',()=>{ const l=S.cat.labores.find(x=>x.labor===$('eLabor').value); if(l) $('eLha').value=l.lha; previewE(); });
+  $('eCampos').querySelectorAll('input').forEach(x=>x.addEventListener('input',previewE));
+  previewE(); $('mEditar').classList.remove('hidden');
+}
+function previewE(){
+  const g=id=>parseFloat(($(id)||{}).value);
+  const tol=S.cat.flujos.variacion, box=$('eRes');
+  if(E.tipo==='cal'){
+    const lha=g('eLha'),vel=g('eVel'),an=g('eAncho'),b1=g('eB1'),b2=g('eB2');
+    if(!(lha>0&&vel>0&&an>0&&b1>0&&b2>0)){ box.innerHTML=''; return; }
+    const q=lha*vel*an*60/10000, qb=q/2, mn=qb*(1-tol), mx=qb*(1+tol), ok=b1>=mn&&b1<=mx&&b2>=mn&&b2<=mx;
+    box.innerHTML=`<div><small>Variación B1</small><b class="${Math.abs((b1-qb)/qb)<=tol?'v-ok':'v-bad'}">${pct((b1-qb)/qb)}</b></div><div><small>Variación B2</small><b class="${Math.abs((b2-qb)/qb)<=tol?'v-ok':'v-bad'}">${pct((b2-qb)/qb)}</b></div>
+      <div><small>Rango por boquilla</small><b>${f(mn)} – ${f(mx)}</b></div><div><small>Estado</small><b class="${ok?'v-ok':'v-bad'}">${ok?'Dentro de rango':'Fuera de rango'}</b></div>`;
+  } else {
+    const lha=g('eLha'),ar=g('eAreaReal'),ap=g('eAplic'),ca=g('eCarga'),dv=g('eDev');
+    if(!(lha>0&&ar>0&&ap>0)){ box.innerHTML=''; return; }
+    const real=ap/ar, v=(real-lha)/lha, vq=ca>0&&!isNaN(dv)?(ap-(ca-dv))/ca:NaN;
+    box.innerHTML=`<div><small>L/ha real</small><b>${f(real,2)}</b></div><div><small>% Variación</small><b class="${Math.abs(v)<=tol?'v-ok':'v-bad'}">${pct(v)}</b></div>
+      <div style="grid-column:1/-1"><small>% Var caudal</small><b>${pct(vq)}</b></div>`;
+  }
+}
+document.addEventListener('click',e=>{
+  const c=e.target.closest('[data-ecal]'); if(c) abrirEditarCal(+c.dataset.ecal);
+  const v=e.target.closest('[data-evue]'); if(v) abrirEditarVue(+v.dataset.evue);
+});
+$('bECerrar').onclick=()=>$('mEditar').classList.add('hidden');
+$('fEditar').addEventListener('submit',async ev=>{
+  ev.preventDefault();
+  const g=id=>$(id).value, r=E.reg, b=$('bEGuardar');
+  b.disabled=true; b.innerHTML='<span class="spin"></span>Guardando…';
+  try{
+    if(E.tipo==='cal'){
+      await api('editarCalibracion',{datos:{ fila:r.fila, fechaOrig:r.fecha, dronOrig:r.dron, dron:g('eDron'), labor:g('eLabor'), supervisor:g('eSup'),
+        tiempo:g('eTiempo'), b1:g('eB1'), b2:g('eB2'), lha:g('eLha'), vel:g('eVel'), ancho:g('eAncho'), observaciones:g('eObs') }});
+    } else {
+      await api('editarVuelo',{datos:{ fila:r.fila, dronOrig:r.dron, dron:g('eDron'), labor:g('eLabor'), lha:g('eLha'),
+        areaPoligono:g('eAreaPol'), distanciaMax:g('eDist'), carga:g('eCarga'), areaReal:g('eAreaReal'), aplicados:g('eAplic'), devueltos:g('eDev'), observaciones:g('eObs') }});
+    }
+    $('mEditar').classList.add('hidden'); toast('✓ Registro actualizado');
+    S.dash=[];
+    const vis=[...document.querySelectorAll('#tabs button.on')].map(x=>x.dataset.v)[0];
+    if(vis==='hoy') cargarHoy(); else if(vis==='vuelo') cargarVuelos(); else if(vis==='dash') cargarDash();
+  }catch(e){ toast(e.message,1) }
+  b.disabled=false; b.textContent='Guardar cambios';
+});
+
 function opcionesPct(){
   return {responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
     plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:"'Barlow',system-ui,sans-serif"}}},
