@@ -1054,7 +1054,7 @@ $('bReporte').onclick=async()=>{
   if(d>h) return toast('La fecha inicial es mayor que la final',1);
   const b=$('bReporte'); b.disabled=true; b.innerHTML='<span class="spin"></span>Analizando y enviando…';
   try{
-    const j=await api('reporte',{desde:d,hasta:h});
+    const j=await api('reporte',{desde:d,hasta:h},{timeout:180000});
     $('rFrame').srcdoc='<!doctype html><meta charset="utf-8"><body style="margin:12px;background:#fff">'+j.html+'</body>';
     $('rCard').classList.remove('hidden');
     toast(`✓ Reporte enviado a ${j.enviadoA}`+(j.avisoPdf?` · ${j.avisoPdf}`:''), !!j.avisoPdf);

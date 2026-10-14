@@ -802,7 +802,21 @@ function analizar_(desde, hasta) {
     .sort((x, y) => isoDe_(x.fecha) < isoDe_(y.fecha) ? -1 : 1);
   const manuales = cal.filter(r => /MANUAL/i.test(r.parametros)).length;
   if (manuales) hall.push('<b>' + manuales + '</b> calibración(es) se hicieron con parámetros ajustados manualmente por el administrador.');
-  return { desde: desde, hasta: hasta, tol: tol, total: tot, dentro: totDentro, drones: drones, hallazgos: hall, recomendaciones: rec, vuelos: vue.length, observaciones: obs };
+  const vV = vue.map(v => v.variacion).filter(x => x != null), vQ = vue.map(v => v.varCaudal).filter(x => x != null);
+  const vDentro = vV.filter(x => Math.abs(x) <= tol).length;
+  const resumenVuelos = { n: vue.length, drones: new Set(vue.map(v => v.dron)).size, dentro: vDentro,
+    pct: vV.length ? vDentro / vV.length : NaN, promVar: prom_(vV), promVarQ: prom_(vQ) };
+  // serie: variación general promedio por día y por dron
+  const fechas = Array.from(new Set(cal.map(r => r.iso))).sort();
+  const nomCal = Array.from(new Set(cal.map(r => r.dron))).sort((x, y) => x.localeCompare(y, 'es', { numeric: true }));
+  const serieTiempo = { fechas: fechas, drones: nomCal, valores: fechas.map(f => nomCal.map(dr => {
+    const rr = cal.filter(r => r.iso === f && r.dron === dr && r.varGeneral != null);
+    return rr.length ? prom_(rr.map(r => r.varGeneral)) : null;
+  })) };
+  const listaVuelos = vue.slice().sort((x, y) => x.iso < y.iso ? -1 : x.iso > y.iso ? 1 : (x.fila || 0) - (y.fila || 0))
+    .map(v => ({ dron: v.dron, fecha: v.fecha, variacion: v.variacion, lhaReal: v.lhaReal, lhaTeorico: v.lhaTeorico }));
+  return { desde: desde, hasta: hasta, tol: tol, total: tot, dentro: totDentro, drones: drones, hallazgos: hall, recomendaciones: rec, vuelos: vue.length,
+    observaciones: obs, resumenVuelos: resumenVuelos, serieTiempo: serieTiempo, listaVuelos: listaVuelos };
 }
 
 const VERDE = '#2e7d32', VERDE_OSC = '#1b5e20', VERDE_CLARO = '#eaf4ea', GRIS = '#5f6b73', ROJO = '#c0392b', AMBAR = '#b7791f';
@@ -811,8 +825,11 @@ const LOGO_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAFMAAABuCAYAAABbVi9zAAAfeElEQVR42u19aX
 function logoBlob_() { return Utilities.newBlob(Utilities.base64Decode(LOGO_B64), 'image/png', 'logo.png'); }
 
 /** HTML del reporte. modo 'correo' usa cid:logo; 'web' incrusta el logo. */
-function htmlReporte_(a, u, modo) {
+function htmlReporte_(a, u, modo, g) {
+  g = g || {};
   const logo = modo === 'correo' ? 'cid:logo' : 'data:image/png;base64,' + LOGO_B64;
+  const img = k => !g[k] ? '' : '<div style="margin:10px 0 4px;border:1px solid #e3ebe3;border-radius:8px;padding:6px;background:#fff"><img src="' +
+    (modo === 'correo' ? 'cid:g_' + k : 'data:image/png;base64,' + Utilities.base64Encode(g[k].getBytes())) + '" alt="" style="width:100%;max-width:880px;display:block"></div>';
   const th = 'style="background:' + VERDE + ';color:#fff;padding:6px;text-align:left;font-size:11px;vertical-align:bottom"';
   const td = 'style="padding:6px;border-top:1px solid #dfe2dc;font-size:11px"';
   const h3 = t => '<h3 style="margin:20px 0 8px;font-size:16px;color:' + VERDE + ';border-bottom:2px solid ' + VERDE_CLARO + ';padding-bottom:4px">' + t + '</h3>';
@@ -855,6 +872,13 @@ function htmlReporte_(a, u, modo) {
     '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><tr>' +
     ['Dron', 'Estado', 'Calib.', '% dentro de rango', 'Var. prom. B1', 'Var. prom. B2', '|Var. gral.| prom.', 'Var. máx.', 'Desbalance B1–B2', 'Fuera B1 / B2', 'Tendencia', 'Última calibración'].map(x => '<th ' + th + '>' + x + '</th>').join('') +
     '</tr>' + (filas || '<tr><td ' + td + ' colspan="12">Sin datos</td></tr>') + '</table></div>' +
+    (g.boquillas || g.tiempo ? h3('Gráficas de calibración') + img('boquillas') + img('tiempo') : '') +
+    (a.resumenVuelos && a.resumenVuelos.n ? h3('Comportamiento del vuelo') + '<table style="width:100%;border-collapse:collapse"><tr>' +
+      kpi('Vuelos', a.resumenVuelos.n, a.resumenVuelos.drones + ' drones', VERDE_OSC) +
+      kpi('Dentro de rango L/ha', isNaN(a.resumenVuelos.pct) ? '—' : pa_(a.resumenVuelos.pct, 0), a.resumenVuelos.dentro + ' de ' + a.resumenVuelos.n + ' dentro de ±' + (a.tol * 100).toFixed(0) + '%', a.resumenVuelos.pct >= 0.8 ? VERDE : a.resumenVuelos.pct >= 0.5 ? AMBAR : ROJO) +
+      kpi('Var. L/ha promedio', p_(a.resumenVuelos.promVar), 'real vs teórico', Math.abs(a.resumenVuelos.promVar) <= a.tol ? VERDE : ROJO) +
+      kpi('Var. caudal promedio', p_(a.resumenVuelos.promVarQ), 'aplicado vs consumo', Math.abs(a.resumenVuelos.promVarQ) <= a.tol ? VERDE : ROJO) +
+      '</tr></table>' + img('lha') + img('vuelos') : '') +
     (conV.length ? h3('Vuelos del drone en el período') + '<table style="border-collapse:collapse;width:100%"><tr>' +
       ['Dron', 'Vuelos', 'Var. L/ha prom.', '|Var. L/ha| prom.', 'Var. caudal prom.', 'Vuelos fuera de rango'].map(x => '<th ' + th + '>' + x + '</th>').join('') + '</tr>' + filasV + '</table>' : '') +
     (obs ? h3('Observaciones de campo') + '<table style="border-collapse:collapse;width:100%"><tr>' + ['Fecha', 'Dron', 'Registro', 'Observación'].map(x => '<th ' + th + '>' + x + '</th>').join('') + '</tr>' + obs + '</table>' : '') +
@@ -862,6 +886,87 @@ function htmlReporte_(a, u, modo) {
     'Desbalance = |B1 − B2| ÷ caudal por boquilla. Tendencia compara la primera y la segunda mitad del período. ' +
     'Estado: <b style="color:' + VERDE + '">Bueno</b> = 80% o más dentro de rango y última calibración OK; <b style="color:' + ROJO + '">Crítico</b> = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; <b style="color:' + AMBAR + '">Atención</b> = el resto.</p>' +
     '</div>';
+}
+
+/* ---------- Gráficas del reporte (hoja temporal de Google Sheets → imágenes PNG) ---------- */
+
+function graficaPng_(sh, rango, tipo, titulo, opciones) {
+  let b = sh.newChart().setChartType(tipo).addRange(rango).setNumHeaders(1).setPosition(1, 12, 0, 0)
+    .setOption('title', titulo).setOption('width', 900).setOption('height', 340)
+    .setOption('fontName', 'Arial').setOption('legend', { position: 'bottom' })
+    .setOption('titleTextStyle', { color: VERDE, fontSize: 15, bold: true })
+    .setOption('backgroundColor', '#ffffff');
+  Object.keys(opciones || {}).forEach(k => { b = b.setOption(k, opciones[k]); });
+  sh.insertChart(b.build());
+  SpreadsheetApp.flush();
+  const cs = sh.getCharts();
+  return cs[cs.length - 1].getAs('image/png');
+}
+
+function graficas_(a) {
+  const g = {};
+  let ss = null;
+  try {
+    ss = SpreadsheetApp.create('tmp_graficas_reporte_calibracion');
+    const sh = ss.getSheets()[0];
+    let fila = 1;
+    const tabla = filas => {
+      const r0 = fila;
+      sh.getRange(r0, 1, filas.length, filas[0].length).setValues(filas);
+      fila += filas.length + 2;
+      return sh.getRange(r0, 1, filas.length, filas[0].length);
+    };
+    const t = r_(a.tol * 100, 2), lim = { type: 'line', color: ROJO, lineWidth: 1, pointSize: 0 };
+    const pct = { format: '0.0"%"', gridlines: { color: '#eceee9' } };
+
+    // 1) Variación por boquilla — última calibración
+    const conU = a.drones.filter(d => d.ultimo && d.ultimo.varB1 != null);
+    if (conU.length) {
+      const rg = tabla([['Dron', 'Boquilla 1', 'Boquilla 2', '+' + t + '%', '−' + t + '%']]
+        .concat(conU.map(d => [d.dron, r_(d.ultimo.varB1 * 100, 2), r_(d.ultimo.varB2 * 100, 2), t, -t])));
+      g.boquillas = graficaPng_(sh, rg, Charts.ChartType.COMBO, 'Variación por boquilla — última calibración (%)',
+        { seriesType: 'bars', vAxis: pct, series: { 0: { color: '#3f8f3a' }, 1: { color: '#9bc89a' }, 2: lim, 3: Object.assign({ visibleInLegend: false }, lim) } });
+    }
+
+    // 2) Variación general en el tiempo (por dron)
+    const st = a.serieTiempo;
+    if (st && st.fechas.length && st.drones.length) {
+      const filas = [['Fecha'].concat(st.drones)].concat(st.fechas.map((f, i) => [dmy_(f).slice(0, 5)].concat(st.valores[i].map(v => v == null ? '' : r_(v * 100, 2)))));
+      const rg = tabla(filas);
+      g.tiempo = graficaPng_(sh, rg, Charts.ChartType.LINE, 'Variación general en el tiempo (%)',
+        { vAxis: pct, pointSize: 6, lineWidth: 2, interpolateNulls: true,
+          colors: ['#3f8f3a', '#1f5f8b', '#b7791f', '#7a4fa0', '#c0392b', '#2a9d8f', '#5b6470', '#d4a017', '#8d6e63', '#00838f'] });
+    }
+
+    // 3) L/ha real vs teórico (promedio por dron)
+    const conV = a.drones.filter(d => d.vuelos);
+    if (conV.length) {
+      const lv = a.listaVuelos || [];
+      const filas = [['Dron', 'L/ha real', 'L/ha teórico']].concat(conV.map(d => {
+        const vs = lv.filter(v => v.dron === d.dron);
+        return [d.dron, r_(prom_(vs.map(v => v.lhaReal).filter(x => x != null)), 2), r_(prom_(vs.map(v => v.lhaTeorico).filter(x => x != null)), 2)];
+      }));
+      const vals = filas.slice(1).reduce((acc, r) => acc.concat([r[1], r[2]]), []).filter(x => !isNaN(x));
+      const rg = tabla(filas);
+      g.lha = graficaPng_(sh, rg, Charts.ChartType.COMBO, 'L/ha real vs teórico — promedio por dron',
+        { seriesType: 'bars', series: { 0: { color: '#3f8f3a' }, 1: { type: 'line', color: '#141618', lineWidth: 2, pointSize: 6 } },
+          vAxis: { title: 'L/ha', viewWindow: { min: Math.floor(Math.min.apply(null, vals) * 0.98 * 10) / 10 }, gridlines: { color: '#eceee9' } } });
+    }
+
+    // 4) Variación L/ha por vuelo
+    const lv = a.listaVuelos || [];
+    if (lv.length) {
+      const rg = tabla([['Vuelo', '% Var L/ha', '+' + t + '%', '−' + t + '%']]
+        .concat(lv.map(v => [v.dron + ' ' + String(v.fecha).slice(0, 5), v.variacion == null ? '' : r_(v.variacion * 100, 2), t, -t])));
+      g.vuelos = graficaPng_(sh, rg, Charts.ChartType.COMBO, 'Variación L/ha por vuelo (%)',
+        { seriesType: 'bars', vAxis: pct, series: { 0: { color: '#3f8f3a' }, 1: lim, 2: Object.assign({ visibleInLegend: false }, lim) } });
+    }
+  } catch (e) {
+    g.error = String(e && e.message || e);
+  } finally {
+    if (ss) { try { DriveApp.getFileById(ss.getId()).setTrashed(true); } catch (e) {} }
+  }
+  return g;
 }
 
 /* ---------- PDF con Google Docs: logo en la esquina de cada hoja ---------- */
@@ -904,7 +1009,30 @@ function tituloDoc_(body, texto) {
   return p;
 }
 
-function pdfReporte_(a, u, nombre) {
+function imagenDoc_(body, blob) {
+  if (!blob) return;
+  const p = body.appendParagraph('');
+  p.setSpacingBefore(6).setSpacingAfter(2);
+  const im = p.appendInlineImage(blob);
+  const k = 700 / im.getWidth();
+  im.setWidth(700).setHeight(Math.round(im.getHeight() * k));
+}
+
+function kpisDoc_(body, kp) {
+  const kt = body.appendTable([kp.map(x => x[0])]);
+  kt.setBorderColor('#ffffff').setBorderWidth(3);
+  kp.forEach((x, i) => {
+    const cell = kt.getRow(0).getCell(i);
+    cell.setBackgroundColor(VERDE_CLARO).setPaddingTop(6).setPaddingBottom(6).setPaddingLeft(8);
+    cell.getChild(0).asParagraph().editAsText().setFontSize(8).setBold(true).setForegroundColor(GRIS).setFontFamily('Arial');
+    cell.appendParagraph(x[1]).editAsText().setFontSize(22).setBold(true).setForegroundColor(x[3]).setFontFamily('Arial');
+    cell.appendParagraph(x[2]).editAsText().setFontSize(8).setBold(false).setForegroundColor(GRIS).setFontFamily('Arial');
+  });
+  return kt;
+}
+
+function pdfReporte_(a, u, nombre, g) {
+  g = g || {};
   const doc = DocumentApp.create(nombre.replace(/\.pdf$/, ''));
   const id = doc.getId();
   try {
@@ -936,15 +1064,7 @@ function pdfReporte_(a, u, nombre) {
                 ['DENTRO DE RANGO', a.total ? pa_(pctOk, 0) : '—', a.dentro + ' de ' + a.total, pctOk >= 0.8 ? VERDE : pctOk >= 0.5 ? AMBAR : ROJO],
                 ['DRONES EN BUEN ESTADO', String(a.drones.filter(d => d.clase === 'Bueno').length), 'de ' + conN, VERDE],
                 ['DRONES CRÍTICOS', String(nCrit), 'requieren recalibración', nCrit ? ROJO : VERDE]];
-    const kt = body.appendTable([kp.map(x => x[0])]);
-    kt.setBorderColor('#ffffff').setBorderWidth(3);
-    kp.forEach((x, i) => {
-      const cell = kt.getRow(0).getCell(i);
-      cell.setBackgroundColor(VERDE_CLARO).setPaddingTop(6).setPaddingBottom(6).setPaddingLeft(8);
-      cell.getChild(0).asParagraph().editAsText().setFontSize(8).setBold(true).setForegroundColor(GRIS).setFontFamily('Arial');
-      cell.appendParagraph(x[1]).editAsText().setFontSize(22).setBold(true).setForegroundColor(x[3]).setFontFamily('Arial');
-      cell.appendParagraph(x[2]).editAsText().setFontSize(8).setBold(false).setForegroundColor(GRIS).setFontFamily('Arial');
-    });
+    kpisDoc_(body, kp);
 
     tituloDoc_(body, 'Hallazgos principales');
     a.hallazgos.forEach(hx => { const li = body.appendListItem(''); rico_(li, hx); li.setGlyphType(DocumentApp.GlyphType.BULLET); li.editAsText().setFontSize(10).setForegroundColor('#1b1e21').setFontFamily('Arial'); });
@@ -966,6 +1086,24 @@ function pdfReporte_(a, u, nombre) {
       r.getCell(3).editAsText().setBold(true).setForegroundColor(d.pctDentro >= 0.8 ? VERDE : d.pctDentro >= 0.5 ? AMBAR : ROJO);
       if (d.ultimo) r.getCell(11).editAsText().setForegroundColor(/DENTRO/i.test(d.ultimo.estado) ? VERDE : ROJO);
     });
+
+    if (g.boquillas || g.tiempo) {
+      tituloDoc_(body, 'Gráficas de calibración');
+      imagenDoc_(body, g.boquillas);
+      imagenDoc_(body, g.tiempo);
+    }
+
+    const rv = a.resumenVuelos;
+    if (rv && rv.n) {
+      tituloDoc_(body, 'Comportamiento del vuelo');
+      kpisDoc_(body, [
+        ['VUELOS', String(rv.n), rv.drones + ' drones', VERDE_OSC],
+        ['DENTRO DE RANGO L/HA', isNaN(rv.pct) ? '—' : pa_(rv.pct, 0), rv.dentro + ' de ' + rv.n + ' dentro de ±' + (a.tol * 100).toFixed(0) + '%', rv.pct >= 0.8 ? VERDE : rv.pct >= 0.5 ? AMBAR : ROJO],
+        ['VAR. L/HA PROMEDIO', p_(rv.promVar), 'real vs teórico', Math.abs(rv.promVar) <= a.tol ? VERDE : ROJO],
+        ['VAR. CAUDAL PROMEDIO', p_(rv.promVarQ), 'aplicado vs consumo', Math.abs(rv.promVarQ) <= a.tol ? VERDE : ROJO]]);
+      imagenDoc_(body, g.lha);
+      imagenDoc_(body, g.vuelos);
+    }
 
     const conV = a.drones.filter(d => d.vuelos);
     if (conV.length) {
@@ -991,33 +1129,41 @@ function pdfReporte_(a, u, nombre) {
   }
 }
 
+function imagenesCorreo_(g) {
+  const im = { logo: logoBlob_() };
+  ['boquillas', 'tiempo', 'lha', 'vuelos'].forEach(k => { if (g[k]) im['g_' + k] = g[k]; });
+  return im;
+}
+
 function generarReporte_(u, desde, hasta, enviar) {
   if (!u.esAdmin) return { ok: false, error: 'Solo el administrador puede generar reportes.' };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(desde || '') || !/^\d{4}-\d{2}-\d{2}$/.test(hasta || '')) return { ok: false, error: 'Seleccione fecha inicial y final.' };
   if (desde > hasta) return { ok: false, error: 'La fecha inicial es mayor que la final.' };
   const a = analizar_(desde, hasta);
-  const html = htmlReporte_(a, u, 'web');
+  const g = graficas_(a);
+  const html = htmlReporte_(a, u, 'web', g);
   let enviadoA = '', avisoPdf = '';
   if (enviar) {
     if (!u.correo) return { ok: false, error: 'Su usuario no tiene CORREO ELECTRONICO en la pestaña USUARIOS.' };
     const nombre = 'Reporte_calibracion_' + desde + '_a_' + hasta + '.pdf';
     let pdf;
-    try { pdf = pdfReporte_(a, u, nombre); }
+    try { pdf = pdfReporte_(a, u, nombre, g); }
     catch (err) {
       // Respaldo: si falla el PDF con logo, se envía igual con un PDF sencillo
       avisoPdf = 'PDF con logo no disponible (' + (err && err.message || err) + '); se envió un PDF sencillo.';
-      pdf = Utilities.newBlob('<html><head><meta charset="utf-8"></head><body>' + htmlReporte_(a, u, 'web') + '</body></html>', 'text/html', 'r.html').getAs('application/pdf').setName(nombre);
+      pdf = Utilities.newBlob('<html><head><meta charset="utf-8"></head><body>' + htmlReporte_(a, u, 'web', g) + '</body></html>', 'text/html', 'r.html').getAs('application/pdf').setName(nombre);
     }
     MailApp.sendEmail({
       to: u.correo,
       subject: 'Reporte de calibración de boquillas · ' + dmy_(desde) + ' al ' + dmy_(hasta),
-      htmlBody: htmlReporte_(a, u, 'correo'),
-      inlineImages: { logo: logoBlob_() },
+      htmlBody: htmlReporte_(a, u, 'correo', g),
+      inlineImages: imagenesCorreo_(g),
       attachments: [pdf],
       name: 'Calibración de Boquillas · Ingenio Madre Tierra'
     });
     enviadoA = u.correo;
   }
+  if (g.error) avisoPdf = (avisoPdf ? avisoPdf + ' ' : '') + 'Gráficas no disponibles: ' + g.error;
   return { ok: true, enviadoA: enviadoA, avisoPdf: avisoPdf, html: html, resumen: { total: a.total, dentro: a.dentro, drones: a.drones.length } };
 }
 
