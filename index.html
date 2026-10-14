@@ -153,6 +153,11 @@ a{color:var(--accent)}
 .dcard p{margin:2px 0;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .dcard p b{color:var(--text)}
 
+.next{display:flex;gap:14px;align-items:center;justify-content:space-between;background:var(--ink);color:#fff;border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;flex-wrap:wrap}
+.next p{margin:0;font-weight:500}
+.next p small{display:block;color:#aeb4ba;font-weight:400}
+.next .btn{width:auto;height:42px}
+.next .x{background:none;border:0;color:#aeb4ba;font-size:22px;cursor:pointer;padding:0 4px}
 .inline-actions{display:flex;gap:10px;margin-top:6px}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
@@ -191,6 +196,7 @@ a{color:var(--accent)}
     </div>
     <nav class="tabs"><div class="tabs-in" id="tabs">
       <button data-v="calibrar" class="on">Calibrar</button>
+      <button data-v="vuelo">Vuelo del drone</button>
       <button data-v="hoy">Hoy</button>
       <button data-v="flujos" class="hidden" id="tFlujos">Medidor de flujos</button>
       <button data-v="dash" class="hidden" id="tDash">Dashboard</button>
@@ -200,6 +206,10 @@ a{color:var(--accent)}
   <main>
     <!-- ---------- CALIBRAR ---------- -->
     <div id="v-calibrar">
+      <div class="next hidden" id="nextVuelo">
+        <p><span id="nvTxt">Calibración guardada.</span><small>¿Desea registrar el vuelo de este dron?</small></p>
+        <div style="display:flex;gap:8px;align-items:center"><button class="btn" type="button" id="bIrVuelo">Registrar vuelo</button><button class="x" type="button" id="bNoVuelo" aria-label="Cerrar">×</button></div>
+      </div>
       <form id="fCal" class="cols" novalidate>
         <div>
           <div class="card">
@@ -265,6 +275,45 @@ a{color:var(--accent)}
           <div class="inline-actions"><button class="btn ghost" type="button" id="bLimpiar">Limpiar boquillas</button></div>
         </div>
       </form>
+    </div>
+
+    <!-- ---------- VUELO DEL DRONE ---------- -->
+    <div id="v-vuelo" class="hidden">
+      <form id="fVuelo" class="cols" novalidate>
+        <div class="card">
+          <h2>Vuelo del drone <small id="vCalTxt"></small></h2>
+          <div class="grid2">
+            <div class="field"><label for="vFecha">Fecha</label><input id="vFecha" type="date"></div>
+            <div class="field"><label for="vSup">Supervisor</label><select id="vSup"></select></div>
+            <div class="field"><label for="vDron">Dron</label><select id="vDron"></select></div>
+            <div class="field"><label for="vLabor">Labor</label><select id="vLabor"></select></div>
+            <div class="field"><label for="vAreaPol">Área del polígono (ha)</label><input id="vAreaPol" type="number" step="0.01" inputmode="decimal"></div>
+            <div class="field"><label for="vDist">Distancia máx. (m)</label><input id="vDist" type="number" step="1" inputmode="decimal"></div>
+            <div class="field"><label for="vCarga">Carga inicial (L)</label><input id="vCarga" type="number" step="0.1" inputmode="decimal"></div>
+            <div class="field"><label for="vAreaReal">Área real (ha)</label><input id="vAreaReal" type="number" step="0.01" inputmode="decimal"></div>
+            <div class="field"><label for="vAplic">Lts aplicados (L)</label><input id="vAplic" type="number" step="0.01" inputmode="decimal"></div>
+            <div class="field"><label for="vDev">Lts devueltos (L)</label><input id="vDev" type="number" step="0.01" inputmode="decimal"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h2>Resultado del vuelo</h2>
+            <div class="status idle" id="vEstado">Complete los datos del vuelo</div>
+            <div class="res">
+              <div><small>L/ha teórico</small><b id="vrTeo">—</b></div>
+              <div><small>L/ha real</small><b id="vrReal">—</b></div>
+              <div><small>% Variación</small><b id="vrVar">—</b></div>
+              <div><small>Consumo (carga − devueltos)</small><b id="vrCons">—</b></div>
+              <div style="grid-column:1/-1"><small>% Var caudal (aplicados vs consumo, sobre la carga)</small><b id="vrVarQ">—</b></div>
+            </div>
+          </div>
+          <button class="btn" id="bGuardarVuelo" type="submit">Guardar vuelo</button>
+        </div>
+      </form>
+      <div class="card">
+        <h2>Últimos vuelos</h2>
+        <div id="vLista" class="empty">Cargando…</div>
+      </div>
     </div>
 
     <!-- ---------- HOY ---------- -->
@@ -425,8 +474,9 @@ function entrar(user, cat){
 $('tabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) ver(b.dataset.v) });
 function ver(v){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  ['calibrar','hoy','flujos','dash'].forEach(x=>$('v-'+x).classList.toggle('hidden',x!==v));
+  ['calibrar','vuelo','hoy','flujos','dash'].forEach(x=>$('v-'+x).classList.toggle('hidden',x!==v));
   if(v==='hoy') cargarHoy();
+  if(v==='vuelo'){ calcVuelo(); cargarVuelos(); }
   if(v==='flujos') calcFlujos();
   if(v==='dash' && !S.dash.length) cargarDash();
   window.scrollTo({top:0});
@@ -447,6 +497,10 @@ function llenarCatalogos(){
   $('cDron').innerHTML = opts(c.drones.map(d=>d.dron), store.get('cal_dron')||'', c.drones.length?'Seleccione…':'Sin drones (revise hoja)');
   $('cLabor').innerHTML = opts(c.labores.map(l=>l.labor), store.get('cal_labor')||'', 'Seleccione…', lhaTxt);
   $('cFecha').value = hoyISO();
+  $('vSup').innerHTML = opts(c.supervisores, sup, 'Seleccione…');
+  $('vDron').innerHTML = opts(c.drones.map(d=>d.dron), store.get('cal_dron')||'', 'Seleccione…');
+  $('vLabor').innerHTML = opts(c.labores.map(l=>l.labor), store.get('cal_labor')||'', 'Seleccione…', lhaTxt);
+  $('vFecha').value = hoyISO();
   $('mDron').innerHTML = opts(c.drones.map(d=>d.dron), '', 'Manual');
   $('mLabor').innerHTML = opts(c.labores.map(l=>l.labor), '', 'Manual', lhaTxt);
   $('dDron').innerHTML = '<option value="">Todos</option>' + c.drones.map(d=>`<option>${esc(d.dron)}</option>`).join('');
@@ -551,6 +605,9 @@ $('fCal').addEventListener('submit', async ev=>{
       tiempo:parseFloat($('cTiempo').value)||1, b1:parseFloat($('cB1').value), b2:parseFloat($('cB2').value), foto:S.foto
     }});
     toast(`✓ Guardado: ${r.dron.dron} · descarga ${j.descarga} · ${j.calculo.estado.toLowerCase()}`);
+    S.ultCal = { dron:r.dron.dron, labor:r.lab.labor, fecha:$('cFecha').value, supervisor:$('cSup').value, descarga:j.descarga };
+    $('nvTxt').textContent = `Calibración ${j.descarga} de ${r.dron.dron} guardada.`;
+    $('nextVuelo').classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'});
     $('cB1').value=''; $('cB2').value=''; quitarFoto(); recalcular(); S.dash=[];
   }catch(e){ toast(e.message,1) }
   b.disabled=false; b.textContent='Guardar calibración';
@@ -597,6 +654,62 @@ function calcFlujos(){
 ['mBase','mMin','mMax','mVel','mAncho','mVar','mInv'].forEach(id=>$(id).addEventListener('input',calcFlujos));
 $('mDron').addEventListener('change',()=>{ const d=S.cat.drones.find(x=>x.dron===$('mDron').value); if(d){ $('mVel').value=d.vel; $('mAncho').value=d.ancho; } calcFlujos(); });
 $('mLabor').addEventListener('change',()=>{ const l=S.cat.labores.find(x=>x.labor===$('mLabor').value); if(l){ $('mBase').value=l.lha; } calcFlujos(); });
+
+/* ================= vuelo del drone ================= */
+$('bNoVuelo').onclick=()=>$('nextVuelo').classList.add('hidden');
+$('bIrVuelo').onclick=()=>{
+  const u=S.ultCal; if(!u) return;
+  $('vDron').value=u.dron; $('vLabor').value=u.labor; $('vFecha').value=u.fecha; if(u.supervisor) $('vSup').value=u.supervisor;
+  S.vueloCal=u.descarga; $('vCalTxt').textContent=`desde calibración ${u.descarga}`;
+  $('nextVuelo').classList.add('hidden'); ver('vuelo'); $('vAreaPol').focus();
+};
+function calcVuelo(){
+  const g=id=>parseFloat($(id).value);
+  const lab=S.cat&&S.cat.labores.find(l=>l.labor===$('vLabor').value);
+  const tol=S.cat?S.cat.flujos.variacion:.05;
+  const teo=lab?lab.lha:NaN, carga=g('vCarga'), ar=g('vAreaReal'), ap=g('vAplic'), dev=g('vDev');
+  $('vrTeo').textContent = lab? f(teo,2)+' L/ha':'—';
+  const cons = !isNaN(carga)&&!isNaN(dev) ? carga-dev : NaN;
+  $('vrCons').textContent = isNaN(cons)?'—':f(cons,2)+' L';
+  const real = ap>0&&ar>0 ? ap/ar : NaN;
+  $('vrReal').textContent = isNaN(real)?'—':f(real,2)+' L/ha';
+  const vr = !isNaN(real)&&lab ? (real-teo)/teo : NaN;
+  $('vrVar').textContent = pct(vr); $('vrVar').className = isNaN(vr)?'':(Math.abs(vr)<=tol?'v-ok':'v-bad');
+  const vq = !isNaN(cons)&&ap>0&&carga>0 ? (ap-cons)/carga : NaN;
+  $('vrVarQ').textContent = pct(vq); $('vrVarQ').className = isNaN(vq)?'':(Math.abs(vq)<=tol?'v-ok':'v-bad');
+  const e=$('vEstado');
+  if(isNaN(vr)){ e.className='status idle'; e.textContent= lab?'Complete los datos del vuelo':'Seleccione la labor'; }
+  else { const ok=Math.abs(vr)<=tol; e.className='status '+(ok?'ok':'bad'); e.textContent= ok?`Dentro de ±${(tol*100).toFixed(0)}%`:`Fuera de ±${(tol*100).toFixed(0)}%`; }
+}
+['vLabor','vCarga','vAreaReal','vAplic','vDev'].forEach(id=>{ $(id).addEventListener('input',calcVuelo); $(id).addEventListener('change',calcVuelo); });
+$('fVuelo').addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  const g=id=>$(id).value;
+  if(!g('vDron')) return toast('Seleccione el dron',1);
+  if(!g('vLabor')) return toast('Seleccione la labor',1);
+  for(const [id,n] of [['vCarga','la carga inicial'],['vAreaReal','el área real'],['vAplic','los litros aplicados'],['vDev','los litros devueltos (0 si no hubo)']]) if(g(id)==='') return toast('Ingrese '+n,1);
+  const b=$('bGuardarVuelo'); b.disabled=true; b.innerHTML='<span class="spin"></span>Guardando…';
+  try{
+    const j=await api('guardarVuelo',{datos:{ fecha:g('vFecha'), supervisor:g('vSup'), dron:g('vDron'), labor:g('vLabor'), calibracion:S.vueloCal||'',
+      areaPoligono:g('vAreaPol'), distanciaMax:g('vDist'), carga:g('vCarga'), areaReal:g('vAreaReal'), aplicados:g('vAplic'), devueltos:g('vDev') }});
+    toast(`✓ Vuelo guardado: ${g('vDron')} · ${f(j.calculo.lhaReal,2)} L/ha real (${pct(j.calculo.variacion)})`);
+    ['vAreaPol','vDist','vCarga','vAreaReal','vAplic','vDev'].forEach(id=>$(id).value='');
+    S.vueloCal=''; $('vCalTxt').textContent=''; calcVuelo(); cargarVuelos();
+  }catch(e){ toast(e.message,1) }
+  b.disabled=false; b.textContent='Guardar vuelo';
+});
+async function cargarVuelos(){
+  const box=$('vLista');
+  try{
+    const j=await api('vuelos'); const tol=S.cat.flujos.variacion;
+    if(!j.vuelos.length){ box.className='empty'; box.textContent='Aún no hay vuelos registrados.'; return; }
+    box.className='';
+    const c=x=>x==null?'':(Math.abs(x)<=tol?'v-ok':'v-bad');
+    box.innerHTML=`<div class="tw" style="max-height:420px"><table><thead><tr><th>Fecha</th><th>Dron</th><th>Labor</th><th>Área pol.</th><th>Dist. máx</th><th>Carga</th><th>Área real</th><th>Aplicados</th><th>Devueltos</th><th>L/ha teó.</th><th>L/ha real</th><th>% Var</th><th>% Var caudal</th></tr></thead><tbody>${
+      j.vuelos.map(v=>`<tr><td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${f(v.areaPoligono,2)}</td><td>${f(v.distanciaMax,0)}</td><td>${f(v.carga,1)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td><td>${f(v.devueltos,2)}</td><td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${c(v.variacion)}"><b>${pct(v.variacion)}</b></td><td class="${c(v.varCaudal)}">${pct(v.varCaudal)}</td></tr>`).join('')
+    }</tbody></table></div>`;
+  }catch(e){ box.className='empty'; box.textContent=e.message; }
+}
 
 /* ================= dashboard ================= */
 function toISO(dmy){ const m=String(dmy).match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?`${m[3]}-${m[2]}-${m[1]}`:''; }

@@ -86,6 +86,8 @@ function doPost(e) {
       case 'login':      return json_(login_(p.usuario, p.password));
       case 'catalogos':  return json_(conSesion_(p.token, u => ({ ok: true, usuario: u, catalogos: catalogos_() })));
       case 'guardar':    return json_(conSesion_(p.token, u => guardar_(u, p.datos)));
+      case 'guardarVuelo': return json_(conSesion_(p.token, u => guardarVuelo_(u, p.datos)));
+      case 'vuelos':     return json_(conSesion_(p.token, u => ({ ok: true, vuelos: vuelos_(60) })));
       case 'hoy':        return json_(conSesion_(p.token, u => ({ ok: true, registros: registros_(true) })));
       case 'dashboard':  return json_(conSesion_(p.token, u => {
                             if (!u.permisos.dashboard) return { ok: false, error: 'No tiene permiso para el dashboard.' };
@@ -323,16 +325,17 @@ function hojaCalibraciones_() {
   return sh;
 }
 
-function mapaColumnas_(sh, crear) {
+function mapaColumnas_(sh, crear, campos) {
+  campos = campos || CAMPOS;
   let ultima = Math.max(sh.getLastColumn(), 1);
   const h = sh.getRange(1, 1, 1, ultima).getValues()[0].map(norm_);
   const mapa = {};
-  CAMPOS.forEach(([k, clave]) => {
-    const i = h.findIndex(x => coincide_(x, clave));
+  campos.forEach(([k, clave, , alias]) => {
+    const i = h.findIndex(x => coincide_(x, clave) || (alias && coincide_(x, alias)));
     if (i >= 0) mapa[k] = i + 1;
   });
   if (crear) {
-    CAMPOS.forEach(([k, clave]) => {
+    campos.forEach(([k, clave]) => {
       if (mapa[k]) return;
       ultima += 1;
       sh.getRange(1, ultima).setValue(clave).setFontWeight('bold');
@@ -442,6 +445,113 @@ function registros_(soloHoy) {
     out.push(o);
   });
   return out;
+}
+
+/* ---------- hoja VUELO DEL DRONE ---------- */
+
+const CAMPOS_VUELO = [
+  ['dron', 'DRON', '@'],
+  ['areaPoligono', 'AREA DEL POLIGONO', '0.00'],
+  ['distanciaMax', 'DISTANCIA MAX', '0.##'],
+  ['lhaTeorico', 'LTS/HA TEORICO', '0.00'],
+  ['carga', 'CARGA INICIAL', '0.00'],
+  ['areaReal', 'AREA REAL', '0.00'],
+  ['aplicados', 'LTS APLICADOS', '0.00'],
+  ['devueltos', 'LTS DEVUELTOS', '0.00', 'LST DEVUELTOS'],
+  ['lhaReal', 'LTS/HA REAL', '0.00'],
+  ['variacion', '% VARIACION', '0.00%'],
+  ['varCaudal', '% VAR CAUDAL', '0.00%'],
+  // columnas nuevas (se crean solas al final si no existen)
+  ['fecha', 'FECHA', 'dd/MM/yyyy'],
+  ['labor', 'LABOR', '@'],
+  ['supervisor', 'SUPERVISOR', '@'],
+  ['calibracion', 'CALIBRACION', '@'],
+  ['consumo', 'LTS CONSUMIDOS (CARGA - DEVUELTOS)', '0.00'],
+  ['registradoPor', 'REGISTRADO POR', '@'],
+  ['marcaTiempo', 'MARCA DE TIEMPO', 'dd/MM/yyyy HH:mm']
+];
+
+function hojaVuelos_() {
+  const sh = getSheet_('VUELO');
+  if (!sh) throw new Error('No existe la pestaña VUELO DEL DRONE.');
+  return sh;
+}
+
+function calcularVuelo_(d) {
+  const lhaReal = d.aplicados / d.areaReal;
+  const consumo = d.carga - d.devueltos;
+  return {
+    lhaReal: r_(lhaReal, 2),
+    variacion: (lhaReal - d.lhaTeorico) / d.lhaTeorico,          // L/ha real vs teórico
+    consumo: r_(consumo, 2),
+    varCaudal: (d.aplicados - consumo) / d.carga                 // lts que reporta el dron vs (carga - devueltos), sobre la carga
+  };
+}
+
+function guardarVuelo_(u, d) {
+  if (!d) return { ok: false, error: 'Sin datos.' };
+  const cat = catalogos_();
+  const dron = cat.drones.find(x => norm_(x.dron) === norm_(d.dron));
+  if (!dron) return { ok: false, error: 'Dron no encontrado: ' + d.dron };
+  const labor = cat.labores.find(x => norm_(x.labor) === norm_(d.labor));
+  if (!labor) return { ok: false, error: 'Labor no encontrada: ' + d.labor };
+  const n = k => num_(d[k]);
+  const v = { areaPoligono: n('areaPoligono'), distanciaMax: n('distanciaMax'), carga: n('carga'),
+              areaReal: n('areaReal'), aplicados: n('aplicados'), devueltos: n('devueltos') };
+  for (const k of ['areaReal', 'aplicados', 'carga']) if (!(v[k] > 0)) return { ok: false, error: 'Falta un dato del vuelo (' + k + ').' };
+  if (isNaN(v.devueltos) || v.devueltos < 0) return { ok: false, error: 'Ingrese los litros devueltos (0 si no hubo).' };
+  if (!d.fecha || !/^\d{4}-\d{2}-\d{2}$/.test(d.fecha)) return { ok: false, error: 'Fecha inválida.' };
+  const c = calcularVuelo_(Object.assign({ lhaTeorico: labor.lha }, v));
+  const [Y, M, D] = d.fecha.split('-').map(Number);
+
+  const valores = Object.assign({}, v, c, {
+    dron: dron.dron, lhaTeorico: labor.lha, labor: labor.labor,
+    fecha: new Date(Y, M - 1, D, 12, 0, 0),
+    supervisor: d.supervisor || u.nombre, calibracion: d.calibracion || '',
+    registradoPor: u.nombre, marcaTiempo: new Date()
+  });
+  ['areaPoligono', 'distanciaMax'].forEach(k => { if (isNaN(valores[k])) valores[k] = ''; });
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sh = hojaVuelos_();
+    const mapa = mapaColumnas_(sh, true, CAMPOS_VUELO);
+    const last = sh.getLastRow(), ancho = sh.getLastColumn();
+    const fila = new Array(ancho).fill(''), formatos = new Array(ancho).fill('General');
+    CAMPOS_VUELO.forEach(([k, , fmt]) => {
+      const col = mapa[k]; if (!col) return;
+      fila[col - 1] = valores[k] == null ? '' : valores[k];
+      formatos[col - 1] = fmt;
+    });
+    const destino = sh.getRange(last + 1, 1, 1, ancho);
+    destino.setNumberFormats([formatos]);
+    destino.setValues([fila]);
+    SpreadsheetApp.flush();
+    return { ok: true, calculo: c, fila: last + 1 };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function vuelos_(max) {
+  const sh = hojaVuelos_();
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  const mapa = mapaColumnas_(sh, false, CAMPOS_VUELO);
+  const v = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+  const out = [];
+  v.forEach(r => {
+    const g = k => mapa[k] ? r[mapa[k] - 1] : '';
+    if (!String(g('dron')).trim()) return;
+    const o = { fecha: fechaTxt_(g('fecha')) };
+    ['dron', 'labor', 'supervisor', 'calibracion', 'registradoPor'].forEach(k => o[k] = String(g(k) || ''));
+    ['areaPoligono', 'distanciaMax', 'lhaTeorico', 'carga', 'areaReal', 'aplicados', 'devueltos', 'lhaReal', 'variacion', 'varCaudal'].forEach(k => {
+      const n = num_(g(k)); o[k] = isNaN(n) ? null : n;
+    });
+    out.push(o);
+  });
+  return out.slice(-max).reverse();
 }
 
 /* ---------- diagnóstico: abrir  URL_DE_LA_APP?action=diag ---------- */
