@@ -82,6 +82,7 @@ function doPost(e) {
   try {
     const p = JSON.parse(e.postData.contents || '{}');
     switch (p.action) {
+      case 'ping':       return json_({ ok: true });
       case 'usuarios':   return json_({ ok: true, usuarios: listaUsuarios_() });
       case 'login':      return json_(login_(p.usuario, p.password));
       case 'catalogos':  return json_(conSesion_(p.token, u => ({ ok: true, usuario: u, catalogos: catalogos_() })));
@@ -316,7 +317,8 @@ const CAMPOS = [
   ['marcaTiempo', 'MARCA DE TIEMPO', 'dd/MM/yyyy HH:mm'],
   ['observaciones', 'OBSERVACIONES', '@'],
   ['parametros', 'PARAMETROS', '@'],
-  ['editadoPor', 'EDITADO POR', '@']
+  ['editadoPor', 'EDITADO POR', '@'],
+  ['idRegistro', 'ID REGISTRO', '@']
 ];
 
 function coincide_(h, clave) {
@@ -381,6 +383,25 @@ function escribirFila_(sh, fila, campos, mapa, valores) {
   rango.setNumberFormats([formatos]);
   rango.setValues([actual]);
   SpreadsheetApp.flush();
+}
+
+/** Busca un registro por su ID (para no duplicar cuando el teléfono reintenta). Devuelve la fila o 0. */
+function filaPorId_(sh, mapa, id) {
+  if (!id || !mapa.idRegistro) return 0;
+  const last = sh.getLastRow();
+  if (last < 2) return 0;
+  const ids = sh.getRange(2, mapa.idRegistro, last - 1, 1).getValues();
+  for (let i = ids.length - 1; i >= 0; i--) if (String(ids[i][0]) === String(id)) return i + 2;
+  return 0;
+}
+
+/** Quién registró: el usuario que lo guardó en el teléfono (si existe), si no el de la sesión. */
+function quienRegistra_(u, d) {
+  if (d && d.registradoPor) {
+    const x = leerUsuarios_().find(z => norm_(z.nombre) === norm_(d.registradoPor));
+    if (x) return x.nombre;
+  }
+  return u.nombre;
 }
 
 function editado_(u) { return u.nombre + ' · ' + Utilities.formatDate(new Date(), TZ, 'dd/MM/yyyy HH:mm'); }
@@ -479,6 +500,13 @@ function guardar_(u, d) {
     const sh = hojaCalibraciones_();
     const mapa = mapaColumnas_(sh, true);
 
+    // ¿ya se guardó antes este mismo registro? (reintento desde la cola del teléfono)
+    const ya = filaPorId_(sh, mapa, d.id);
+    if (ya) {
+      const r = sh.getRange(ya, 1, 1, sh.getLastColumn()).getValues()[0];
+      return { ok: true, duplicado: true, descarga: String(r[mapa.descarga - 1]), calculo: { estado: String(r[mapa.estado - 1] || c.estado) }, fila: ya };
+    }
+
     // número de descarga del día para ese dron: R1, R2, R3...
     let n = 1;
     const last = sh.getLastRow();
@@ -508,8 +536,9 @@ function guardar_(u, d) {
       descarga: 'R' + n,
       foto: fotoUrl,
       labor: labor.labor,
-      registradoPor: u.nombre,
+      registradoPor: quienRegistra_(u, d),
       marcaTiempo: new Date(),
+      idRegistro: d.id || '',
       observaciones: textoObs_(d.observaciones),
       parametros: par.manual ? 'MANUAL (admin)' : 'AUTOMATICO'
     });
@@ -584,7 +613,8 @@ const CAMPOS_VUELO = [
   ['registradoPor', 'REGISTRADO POR', '@'],
   ['marcaTiempo', 'MARCA DE TIEMPO', 'dd/MM/yyyy HH:mm'],
   ['observaciones', 'OBSERVACIONES', '@'],
-  ['editadoPor', 'EDITADO POR', '@']
+  ['editadoPor', 'EDITADO POR', '@'],
+  ['idRegistro', 'ID REGISTRO', '@']
 ];
 
 function hojaVuelos_() {
@@ -625,7 +655,7 @@ function guardarVuelo_(u, d) {
     dron: dron.dron, lhaTeorico: lha, labor: labor.labor, observaciones: textoObs_(d.observaciones),
     fecha: new Date(Y, M - 1, D, 12, 0, 0),
     supervisor: d.supervisor || u.nombre, calibracion: d.calibracion || '',
-    registradoPor: u.nombre, marcaTiempo: new Date()
+    registradoPor: quienRegistra_(u, d), marcaTiempo: new Date(), idRegistro: d.id || ''
   });
   ['areaPoligono', 'distanciaMax'].forEach(k => { if (isNaN(valores[k])) valores[k] = ''; });
 
@@ -634,6 +664,13 @@ function guardarVuelo_(u, d) {
   try {
     const sh = hojaVuelos_();
     const mapa = mapaColumnas_(sh, true, CAMPOS_VUELO);
+    if (filaPorId_(sh, mapa, d.id)) return { ok: true, duplicado: true, calculo: c };
+    // calibración ligada (guardada desde la cola): obtener su número R
+    if (!valores.calibracion && d.calId) {
+      const shc = hojaCalibraciones_(), mc = mapaColumnas_(shc, false);
+      const fc = filaPorId_(shc, mc, d.calId);
+      if (fc) valores.calibracion = String(shc.getRange(fc, mc.descarga).getValue());
+    }
     const last = sh.getLastRow(), ancho = sh.getLastColumn();
     const fila = new Array(ancho).fill(''), formatos = new Array(ancho).fill('General');
     CAMPOS_VUELO.forEach(([k, , fmt]) => {

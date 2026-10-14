@@ -183,6 +183,24 @@ td.obs{white-space:normal;min-width:180px;max-width:320px;color:var(--muted);fon
 .sec-h{display:flex;align-items:baseline;gap:10px;margin:8px 0 12px}
 .sec-h h2{font-size:22px;text-transform:uppercase}
 .sec-h span{color:var(--muted);font-size:13px}
+.net{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:999px;border:1px solid #3a4046;background:#1d2124;color:#e6e8ea;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.net .dot{width:10px;height:10px;border-radius:50%;background:#7d848b;box-shadow:0 0 0 3px rgba(125,132,139,.2)}
+.net.on .dot{background:#4cc35a;box-shadow:0 0 0 3px rgba(76,195,90,.22)}
+.net.off{border-color:#7a2a22;background:#2a1715}
+.net.off .dot{background:#e5533f;box-shadow:0 0 0 3px rgba(229,83,63,.25)}
+.net .q{background:#b7791f;color:#fff;border-radius:999px;padding:1px 8px;font-size:11px}
+.net .q.err{background:#c0392b}
+.net.sync .dot{animation:pul 1s ease-in-out infinite}
+@keyframes pul{50%{opacity:.35}}
+@media (max-width:520px){.top-in .inst{display:none}.top-in img{height:34px}.top-in{gap:8px}.net{padding:0 10px;font-size:12px}.top-in .who b{font-size:16px}.top-in #bSalir{padding:0 9px}}
+.cola-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.cola-item b{display:block}
+.cola-item small{color:var(--muted)}
+.cola-item .er{color:var(--bad);font-size:12px;margin-top:3px}
+.cola-item .acc{display:flex;gap:6px;flex-shrink:0}
+.cola-item .acc button{border:1px solid var(--line);background:#fff;border-radius:8px;height:30px;padding:0 10px;font-size:12px;cursor:pointer}
+tr.pend td{background:#fff8ea!important}
+.offnote{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px}
 .inline-actions{display:flex;gap:10px;margin-top:6px}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
@@ -218,6 +236,7 @@ td.obs{white-space:normal;min-width:180px;max-width:320px;color:var(--muted);fon
     <div class="top-in">
       <img src="logo.png" alt="">
       <div class="who"><b id="saludo">Hola</b><span id="cargo"></span></div>
+      <button class="net" type="button" id="netPill" title="Estado de conexión y registros en cola"><span class="dot"></span><span class="lbl" id="netTxt">Conexión</span><span class="q hidden" id="colaN">0</span></button>
       <button class="inst hidden" type="button" data-install>Instalar app</button>
       <button id="bSalir" type="button">Salir</button>
     </div>
@@ -472,6 +491,18 @@ td.obs{white-space:normal;min-width:180px;max-width:320px;color:var(--muted);fon
   </main>
 </section>
 
+<div class="modal hidden" id="mCola" role="dialog" aria-modal="true">
+  <div class="box big">
+    <h2>Registros en cola</h2>
+    <p class="note" id="colaInfo" style="margin:0 0 12px"></p>
+    <div id="colaLista"></div>
+    <div class="row" style="display:flex;gap:10px;margin-top:6px">
+      <button class="btn" type="button" id="bColaEnviar">Enviar ahora</button>
+      <button class="btn ghost" type="button" id="bColaCerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal hidden" id="mEditar" role="dialog" aria-modal="true">
   <form class="box big" id="fEditar" novalidate>
     <h2 id="eTitulo">Editar registro</h2>
@@ -525,14 +556,155 @@ function toast(msg, err){
   clearTimeout(t._h); t._h=setTimeout(()=>t.className='toast'+(err?' err':''),3800);
 }
 
-async function api(action, extra={}){
+async function api(action, extra={}, opt={}){
   if(!/^https:\/\/script\.google\.com\//.test(API_URL)) throw new Error('Falta configurar API_URL en index.html');
-  const r = await fetch(API_URL,{method:'POST',body:JSON.stringify(Object.assign({action, token:S.token}, extra))});
-  const j = await r.json();
-  if(j.sesion===false){ salir(true); throw new Error(j.error); }
+  const ctrl = window.AbortController ? new AbortController() : null;
+  const to = setTimeout(()=>{ try{ ctrl&&ctrl.abort(); }catch(e){} }, opt.timeout||30000);
+  let r, j;
+  try{
+    r = await fetch(API_URL,{method:'POST',body:JSON.stringify(Object.assign({action, token:S.token}, extra)),signal:ctrl?ctrl.signal:undefined});
+    j = await r.json();
+  }catch(e){
+    clearTimeout(to); setConexion(false);
+    const er=new Error('Sin conexión a internet'); er.red=true; throw er;
+  }
+  clearTimeout(to); setConexion(true);
+  if(j.sesion===false){ const er=new Error(j.error); er.sesion=true; salir(true); throw er; }
   if(!j.ok) throw new Error(j.error||'Error');
   return j;
 }
+
+/* ================= modo sin internet: conexión, cola y caché ================= */
+S.online = navigator.onLine !== false;
+function setConexion(on){
+  if(S.online===on && S._pintado) return;
+  const antes=S.online; S.online=on; S._pintado=true;
+  const p=$('netPill'); p.classList.toggle('on',on); p.classList.toggle('off',!on);
+  $('netTxt').textContent = on ? 'Conexión' : 'Sin conexión';
+  if(on && antes===false) setTimeout(sincronizar,300);
+}
+function uid(){ try{ if(crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10); }
+
+/* Cola guardada en el teléfono (IndexedDB; si no se puede, localStorage) */
+const Cola = {
+  db:null, usaLS:false,
+  abrir(){
+    if(this.db||this.usaLS) return Promise.resolve();
+    return new Promise(ok=>{
+      try{
+        const r=indexedDB.open('calibracion-drones',1);
+        r.onupgradeneeded=()=>r.result.createObjectStore('cola',{keyPath:'id'});
+        r.onsuccess=()=>{ this.db=r.result; ok(); };
+        r.onerror=()=>{ this.usaLS=true; ok(); };
+      }catch(e){ this.usaLS=true; ok(); }
+    });
+  },
+  _ls(){ try{ return JSON.parse(localStorage.getItem('cal_cola')||'[]'); }catch(e){ return []; } },
+  _lsSet(a){ try{ localStorage.setItem('cal_cola',JSON.stringify(a)); }catch(e){ toast('El teléfono no tiene espacio para guardar más registros',1); } },
+  async todos(){
+    await this.abrir();
+    if(this.usaLS) return this._ls().sort((a,b)=>a.creado-b.creado);
+    return new Promise((ok,ko)=>{ const q=this.db.transaction('cola').objectStore('cola').getAll(); q.onsuccess=()=>ok(q.result.sort((a,b)=>a.creado-b.creado)); q.onerror=()=>ko(q.error); });
+  },
+  async poner(it){
+    await this.abrir();
+    if(this.usaLS){ const a=this._ls().filter(x=>x.id!==it.id); a.push(it); this._lsSet(a); return; }
+    return new Promise((ok,ko)=>{ const tx=this.db.transaction('cola','readwrite'); tx.objectStore('cola').put(it); tx.oncomplete=()=>ok(); tx.onerror=()=>ko(tx.error); });
+  },
+  async quitar(id){
+    await this.abrir();
+    if(this.usaLS){ this._lsSet(this._ls().filter(x=>x.id!==id)); return; }
+    return new Promise((ok,ko)=>{ const tx=this.db.transaction('cola','readwrite'); tx.objectStore('cola').delete(id); tx.oncomplete=()=>ok(); tx.onerror=()=>ko(tx.error); });
+  }
+};
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+
+async function encolar(accion, datos, info){
+  const it = Object.assign({ id:datos.id, accion, datos, creado:Date.now(), usuario:S.user.nombre, estado:'pendiente', error:'' }, info);
+  await Cola.poner(it);
+  await pintarCola();
+  return it;
+}
+
+let sincronizando=false;
+async function sincronizar(){
+  if(sincronizando || !S.token) return;
+  sincronizando=true; $('netPill').classList.add('sync');
+  try{
+    const items=await Cola.todos();
+    for(const it of items){
+      if(it.estado==='error') continue;               // espera que el usuario lo revise
+      try{
+        const j=await api(it.accion,{datos:it.datos},{timeout:45000});
+        await Cola.quitar(it.id);
+        alEnviar(it,j);
+      }catch(e){
+        if(e.red || e.sesion) break;                  // sin internet o sesión vencida: se queda en cola
+        it.estado='error'; it.error=e.message; await Cola.poner(it);
+        toast(`No se pudo guardar ${it.titulo}: ${e.message}`,1);
+      }
+      await pintarCola();
+    }
+  }catch(e){}
+  finally{ sincronizando=false; $('netPill').classList.remove('sync'); await pintarCola(); }
+}
+
+function alEnviar(it,j){
+  S.dash=[];
+  if(it.accion==='guardar'){
+    toast(`✓ Enviado a la hoja: ${it.datos.dron} · ${j.descarga}${j.duplicado?' (ya estaba guardado)':''}`);
+    if(S.ultCal && S.ultCal.calId===it.id){ S.ultCal.descarga=j.descarga; $('nvTxt').textContent=`Calibración ${j.descarga} de ${it.datos.dron} guardada.`; }
+    if(S.vueloCalId===it.id){ S.vueloCal=j.descarga; $('vCalTxt').textContent=`desde calibración ${j.descarga}`; }
+  } else if(it.accion==='guardarVuelo'){
+    toast(`✓ Vuelo enviado a la hoja: ${it.datos.dron}`);
+  }
+  const vis=[...document.querySelectorAll('#tabs button.on')].map(x=>x.dataset.v)[0];
+  if(vis==='hoy') cargarHoy(); if(vis==='vuelo') cargarVuelos();
+}
+
+async function pintarCola(){
+  let items=[]; try{ items=await Cola.todos(); }catch(e){}
+  S.cola=items;
+  const n=items.length, errs=items.filter(x=>x.estado==='error').length;
+  const q=$('colaN'); q.classList.toggle('hidden',!n); q.classList.toggle('err',!!errs);
+  q.textContent = n ? `${n} en cola` : '';
+  if(!$('mCola').classList.contains('hidden')) pintarListaCola();
+  return items;
+}
+function pintarListaCola(){
+  const items=S.cola||[];
+  $('colaInfo').textContent = items.length
+    ? `Estos registros están guardados en el teléfono${S.online?' y se están enviando a la hoja.':'. Se enviarán solos cuando haya internet.'} No borre los datos de la app mientras haya registros en cola.`
+    : 'No hay registros pendientes: todo está guardado en la hoja.';
+  $('colaLista').innerHTML = items.map(it=>`<div class="cola-item"><div><b>${esc(it.titulo)}</b><small>${esc(it.sub||'')} · guardado ${new Date(it.creado).toLocaleString('es-GT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</small>
+    ${it.estado==='error'?`<div class="er">No se pudo guardar: ${esc(it.error)}</div>`:''}</div>
+    <div class="acc">${it.estado==='error'?`<button type="button" data-creintentar="${esc(it.id)}">Reintentar</button>`:''}<button type="button" data-cborrar="${esc(it.id)}">Eliminar</button></div></div>`).join('');
+}
+$('netPill').onclick=async()=>{ await pintarCola(); pintarListaCola(); $('mCola').classList.remove('hidden'); if(!S.online) ping(); };
+$('bColaCerrar').onclick=()=>$('mCola').classList.add('hidden');
+$('bColaEnviar').onclick=async()=>{
+  for(const it of (S.cola||[])) if(it.estado==='error'){ it.estado='pendiente'; it.error=''; await Cola.poner(it); }
+  await sincronizar(); pintarListaCola();
+  if(!S.online) toast('Sin conexión: los registros siguen guardados en el teléfono',1);
+};
+$('colaLista').addEventListener('click',async e=>{
+  const r=e.target.closest('[data-creintentar]'), d=e.target.closest('[data-cborrar]');
+  if(r){ const it=(S.cola||[]).find(x=>x.id===r.dataset.creintentar); if(it){ it.estado='pendiente'; it.error=''; await Cola.poner(it); sincronizar(); } }
+  if(d){ const it=(S.cola||[]).find(x=>x.id===d.dataset.cborrar); if(it && confirm(`¿Eliminar "${it.titulo}" de la cola? Este registro NO se guardará en la hoja.`)){ await Cola.quitar(it.id); await pintarCola(); } }
+});
+function ping(){ return api('ping',{}, {timeout:10000}).then(()=>sincronizar()).catch(()=>{}); }
+window.addEventListener('online',()=>ping());
+window.addEventListener('offline',()=>setConexion(false));
+setInterval(()=>{
+  if(!S.token) return;
+  if((S.cola||[]).some(x=>x.estado!=='error')) sincronizar();
+  else if(!S.online) ping();
+},20000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.token) ping(); });
+
+/* Caché de sesión, catálogos y listas para abrir sin internet */
+function guardarCache(k,v){ try{ localStorage.setItem('cal_c_'+k, JSON.stringify(v)); }catch(e){} }
+function leerCache(k){ try{ return JSON.parse(localStorage.getItem('cal_c_'+k)||'null'); }catch(e){ return null; } }
 
 function hoyISO(){
   const p = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Guatemala',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -549,7 +721,7 @@ async function cargarUsuarios(){
     const j = await api('usuarios');
     const last = store.get('cal_user')||'';
     $('lUser').innerHTML = '<option value="">Seleccione…</option>' + j.usuarios.map(u=>`<option ${u===last?'selected':''}>${esc(u)}</option>`).join('');
-  }catch(e){ $('lUser').innerHTML='<option value="">Sin conexión</option>'; $('lErr').textContent=e.message; }
+  }catch(e){ $('lUser').innerHTML='<option value="">Sin conexión</option>'; $('lErr').textContent = e.red ? 'Sin conexión. Para ingresar la primera vez se necesita internet.' : e.message; }
 }
 $('fLogin').addEventListener('submit', async ev=>{
   ev.preventDefault(); $('lErr').textContent='';
@@ -557,12 +729,15 @@ $('fLogin').addEventListener('submit', async ev=>{
   try{
     const j = await api('login',{usuario:$('lUser').value,password:$('lPass').value});
     S.token=j.token; store.set('cal_token',j.token); store.set('cal_user',j.usuario.nombre);
-    entrar(j.usuario,j.catalogos);
+    guardarCache('sesion',{usuario:j.usuario,catalogos:j.catalogos});
+    entrar(j.usuario,j.catalogos); sincronizar();
   }catch(e){ $('lErr').textContent=e.message }
   b.disabled=false; b.textContent='Ingresar';
 });
 function salir(silencioso){
+  if(!silencioso && (S.cola||[]).length && !confirm(`Hay ${(S.cola||[]).length} registro(s) en cola sin enviar. Quedan guardados en el teléfono y se enviarán cuando vuelva a ingresar. ¿Salir?`)) return;
   if(!silencioso && S.token) api('logout').catch(()=>{});
+  if(!silencioso) guardarCache('sesion',null);
   S.token=null; store.del('cal_token');
   $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('lPass').value='';
   if(!$('lUser').options.length || $('lUser').options.length<2) cargarUsuarios();
@@ -733,34 +908,43 @@ $('fCal').addEventListener('submit', async ev=>{
   if(!(r.b1>0) || !(r.b2>0)) return toast('Ingrese la descarga de ambas boquillas',1);
   const b=$('bGuardar'); b.disabled=true; b.innerHTML='<span class="spin"></span>Guardando…';
   try{
-    const j = await api('guardar',{datos:{
+    const datos={ id:uid(), registradoPor:S.user.nombre,
       fecha:$('cFecha').value, supervisor:$('cSup').value, dron:r.dron.dron, labor:r.lab.labor,
       tiempo:parseFloat($('cTiempo').value)||1, b1:parseFloat($('cB1').value), b2:parseFloat($('cB2').value), foto:S.foto,
-      observaciones:$('cObs').value, vel:r.dron.vel, ancho:r.dron.ancho, lha:r.lab.lha
-    }});
-    toast(`✓ Guardado: ${r.dron.dron} · descarga ${j.descarga} · ${j.calculo.estado.toLowerCase()}`);
-    S.ultCal = { dron:r.dron.dron, labor:r.lab.labor, fecha:$('cFecha').value, supervisor:$('cSup').value, descarga:j.descarga };
-    $('nvTxt').textContent = `Calibración ${j.descarga} de ${r.dron.dron} guardada.`;
+      observaciones:$('cObs').value, vel:r.dron.vel, ancho:r.dron.ancho, lha:r.lab.lha };
+    const ok = r.b1>=r.min&&r.b1<=r.max&&r.b2>=r.min&&r.b2<=r.max;
+    await encolar('guardar', datos, { titulo:`Calibración ${r.dron.dron}`, sub:`${r.lab.labor} · B1 ${f(r.b1)} · B2 ${f(r.b2)}`,
+      local:{ fecha:datos.fecha, dron:r.dron.dron, labor:r.lab.labor, supervisor:datos.supervisor, b1:r.b1, b2:r.b2,
+              varGeneral:(r.b1+r.b2-r.caudal)/r.caudal, estado: ok?'DENTRO DE RANGO':'FUERA DE RANGO', observaciones:datos.observaciones } });
+    S.ultCal = { dron:r.dron.dron, labor:r.lab.labor, fecha:datos.fecha, supervisor:datos.supervisor, calId:datos.id, descarga:'' };
+    $('nvTxt').textContent = `Calibración de ${r.dron.dron} guardada${S.online?'':' en el teléfono (en cola)'}.`;
     $('nextVuelo').classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'});
-    $('cB1').value=''; $('cB2').value=''; $('cObs').value=''; quitarFoto(); recalcular(); S.dash=[];
-  }catch(e){ toast(e.message,1) }
+    $('cB1').value=''; $('cB2').value=''; $('cObs').value=''; quitarFoto(); recalcular();
+    toast(S.online ? 'Guardado. Enviando a la hoja…' : 'Sin conexión: guardado en el teléfono. Se enviará cuando haya internet.', !S.online);
+    sincronizar();
+  }catch(e){ toast('No se pudo guardar en el teléfono: '+e.message,1) }
   b.disabled=false; b.textContent='Guardar calibración';
 });
 
 /* ================= hoy ================= */
 async function cargarHoy(){
   $('hoyFecha').textContent = new Date(hoyISO()+'T12:00').toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
-  $('hoyBody').innerHTML='Cargando…'; $('hoyBody').className='empty';
-  try{
-    const j=await api('hoy');
-    if(!j.registros.length){ $('hoyBody').textContent='Aún no hay calibraciones registradas hoy.'; return; }
-    $('hoyBody').className='';
-    S.hoy=j.registros;
-    const adm=S.user.esAdmin;
-    $('hoyBody').innerHTML = `<div class="tw"><table><thead><tr><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>B1</th><th>B2</th><th>Var gral.</th><th>Estado</th><th>Observaciones</th>${adm?'<th></th>':''}</tr></thead><tbody>${
-      j.registros.slice().reverse().map(x=>`<tr><td>${esc(x.descarga)}</td><td><b>${esc(x.dron)}</b>${/MANUAL/i.test(x.parametros)?'<span class="tag-man">MANUAL</span>':''}</td><td>${esc(x.labor)}</td><td>${esc(x.supervisor)}</td><td>${f(x.b1)}</td><td>${f(x.b2)}</td><td>${pct(x.varGeneral)}</td><td>${pill(x.estado)}</td><td class="obs">${esc(x.observaciones)}</td>${adm?`<td><button class="ed" type="button" title="Editar" data-ecal="${x.fila}">✎</button></td>`:''}</tr>`).join('')
-    }</tbody></table></div>`;
-  }catch(e){ $('hoyBody').textContent=e.message }
+  if(!$('hoyBody').querySelector('table')){ $('hoyBody').innerHTML='Cargando…'; $('hoyBody').className='empty'; }
+  let regs, nota='';
+  try{ regs=(await api('hoy')).registros; guardarCache('hoy',{dia:hoyISO(),regs}); }
+  catch(e){
+    const c=leerCache('hoy'); regs = c && c.dia===hoyISO() ? c.regs : [];
+    nota = e.red ? 'Sin conexión: se muestra lo último que se descargó y lo que está en cola.' : e.message;
+  }
+  const pend=((await pintarCola())||[]).filter(it=>it.accion==='guardar' && it.local && it.local.fecha===hoyISO());
+  S.hoy=regs;
+  const adm=S.user.esAdmin && S.online;
+  if(!regs.length && !pend.length){ $('hoyBody').className='empty'; $('hoyBody').innerHTML=(nota?`<div class="offnote">${esc(nota)}</div>`:'')+'Aún no hay calibraciones registradas hoy.'; return; }
+  $('hoyBody').className='';
+  $('hoyBody').innerHTML = (nota?`<div class="offnote">${esc(nota)}</div>`:'')+`<div class="tw"><table><thead><tr><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>B1</th><th>B2</th><th>Var gral.</th><th>Estado</th><th>Observaciones</th>${adm?'<th></th>':''}</tr></thead><tbody>${
+    pend.slice().reverse().map(it=>{ const x=it.local; return `<tr class="pend"><td>${it.estado==='error'?'⚠':'⏳'} En cola</td><td><b>${esc(x.dron)}</b></td><td>${esc(x.labor)}</td><td>${esc(x.supervisor)}</td><td>${f(x.b1)}</td><td>${f(x.b2)}</td><td>${pct(x.varGeneral)}</td><td>${pill(x.estado)}</td><td class="obs">${esc(x.observaciones)}</td>${adm?'<td></td>':''}</tr>`; }).join('') +
+    regs.slice().reverse().map(x=>`<tr><td>${esc(x.descarga)}</td><td><b>${esc(x.dron)}</b>${/MANUAL/i.test(x.parametros)?'<span class="tag-man">MANUAL</span>':''}</td><td>${esc(x.labor)}</td><td>${esc(x.supervisor)}</td><td>${f(x.b1)}</td><td>${f(x.b2)}</td><td>${pct(x.varGeneral)}</td><td>${pill(x.estado)}</td><td class="obs">${esc(x.observaciones)}</td>${adm?`<td><button class="ed" type="button" title="Editar" data-ecal="${x.fila}">✎</button></td>`:''}</tr>`).join('')
+  }</tbody></table></div>`;
 }
 function pill(e){ const ok=/DENTRO/i.test(e||''); return e?`<span class="pill ${ok?'ok':'bad'}">${ok?'OK':'FUERA'}</span>`:'' }
 
@@ -796,7 +980,7 @@ $('bNoVuelo').onclick=()=>$('nextVuelo').classList.add('hidden');
 $('bIrVuelo').onclick=()=>{
   const u=S.ultCal; if(!u) return;
   $('vDron').value=u.dron; $('vLabor').value=u.labor; { const l=S.cat.labores.find(x=>x.labor===u.labor); $('vLha').value=l?l.lha:''; } $('vFecha').value=u.fecha; if(u.supervisor) $('vSup').value=u.supervisor;
-  S.vueloCal=u.descarga; $('vCalTxt').textContent=`desde calibración ${u.descarga}`;
+  S.vueloCal=u.descarga||''; S.vueloCalId=u.calId||''; $('vCalTxt').textContent= u.descarga?`desde calibración ${u.descarga}`:'desde la última calibración';
   $('nextVuelo').classList.add('hidden'); ver('vuelo'); $('vAreaPol').focus();
 };
 function calcVuelo(){
@@ -828,27 +1012,39 @@ $('fVuelo').addEventListener('submit', async ev=>{
   for(const [id,n] of [['vCarga','la carga inicial'],['vAreaReal','el área real'],['vAplic','los litros aplicados'],['vDev','los litros devueltos (0 si no hubo)']]) if(g(id)==='') return toast('Ingrese '+n,1);
   const b=$('bGuardarVuelo'); b.disabled=true; b.innerHTML='<span class="spin"></span>Guardando…';
   try{
-    const j=await api('guardarVuelo',{datos:{ fecha:g('vFecha'), supervisor:g('vSup'), dron:g('vDron'), labor:g('vLabor'), calibracion:S.vueloCal||'',
+    const datos={ id:uid(), registradoPor:S.user.nombre, fecha:g('vFecha'), supervisor:g('vSup'), dron:g('vDron'), labor:g('vLabor'),
+      calibracion:S.vueloCal||'', calId:S.vueloCalId||'',
       areaPoligono:g('vAreaPol'), distanciaMax:g('vDist'), carga:g('vCarga'), areaReal:g('vAreaReal'), aplicados:g('vAplic'), devueltos:g('vDev'),
-      lha:g('vLha'), observaciones:g('vObs') }});
-    toast(`✓ Vuelo guardado: ${g('vDron')} · ${f(j.calculo.lhaReal,2)} L/ha real (${pct(j.calculo.variacion)})`);
+      lha:g('vLha'), observaciones:g('vObs') };
+    const lab=S.cat.labores.find(l=>l.labor===datos.labor), lhaT = S.user.esAdmin&&parseFloat(datos.lha)>0?parseFloat(datos.lha):(lab?lab.lha:NaN);
+    const real=parseFloat(datos.aplicados)/parseFloat(datos.areaReal);
+    const cons=parseFloat(datos.carga)-parseFloat(datos.devueltos);
+    await encolar('guardarVuelo', datos, { titulo:`Vuelo ${datos.dron}`, sub:`${datos.labor} · ${f(real,2)} L/ha real`,
+      local:{ fecha:datos.fecha, dron:datos.dron, labor:datos.labor, areaPoligono:+datos.areaPoligono||null, distanciaMax:+datos.distanciaMax||null, carga:+datos.carga, areaReal:+datos.areaReal,
+              aplicados:+datos.aplicados, devueltos:+datos.devueltos, lhaTeorico:lhaT, lhaReal:real, variacion:(real-lhaT)/lhaT, varCaudal:(parseFloat(datos.aplicados)-cons)/parseFloat(datos.carga), observaciones:datos.observaciones } });
     ['vAreaPol','vDist','vCarga','vAreaReal','vAplic','vDev','vObs'].forEach(id=>$(id).value='');
-    S.vueloCal=''; $('vCalTxt').textContent=''; calcVuelo(); cargarVuelos();
-  }catch(e){ toast(e.message,1) }
+    S.vueloCal=''; S.vueloCalId=''; $('vCalTxt').textContent=''; calcVuelo(); cargarVuelos();
+    toast(S.online ? 'Vuelo guardado. Enviando a la hoja…' : 'Sin conexión: vuelo guardado en el teléfono. Se enviará cuando haya internet.', !S.online);
+    sincronizar();
+  }catch(e){ toast('No se pudo guardar en el teléfono: '+e.message,1) }
   b.disabled=false; b.textContent='Guardar vuelo';
 });
 async function cargarVuelos(){
   const box=$('vLista');
-  try{
-    const j=await api('vuelos'); const tol=S.cat.flujos.variacion;
-    if(!j.vuelos.length){ box.className='empty'; box.textContent='Aún no hay vuelos registrados.'; return; }
-    box.className='';
-    const c=x=>x==null?'':(Math.abs(x)<=tol?'v-ok':'v-bad');
-    S.vuelosLista=j.vuelos; const adm=S.user.esAdmin;
-    box.innerHTML=`<div class="tw" style="max-height:420px"><table><thead><tr><th>Fecha</th><th>Dron</th><th>Labor</th><th>Área pol.</th><th>Dist. máx</th><th>Carga</th><th>Área real</th><th>Aplicados</th><th>Devueltos</th><th>L/ha teó.</th><th>L/ha real</th><th>% Var</th><th>% Var caudal</th><th>Observaciones</th>${adm?'<th></th>':''}</tr></thead><tbody>${
-      j.vuelos.map(v=>`<tr><td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${f(v.areaPoligono,2)}</td><td>${f(v.distanciaMax,0)}</td><td>${f(v.carga,1)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td><td>${f(v.devueltos,2)}</td><td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${c(v.variacion)}"><b>${pct(v.variacion)}</b></td><td class="${c(v.varCaudal)}">${pct(v.varCaudal)}</td><td class="obs">${esc(v.observaciones)}</td>${adm?`<td><button class="ed" type="button" title="Editar" data-evue="${v.fila}">✎</button></td>`:''}</tr>`).join('')
-    }</tbody></table></div>`;
-  }catch(e){ box.className='empty'; box.textContent=e.message; }
+  let vs, nota='';
+  try{ vs=(await api('vuelos')).vuelos; guardarCache('vuelos',vs); }
+  catch(e){ vs=leerCache('vuelos')||[]; nota = e.red ? 'Sin conexión: se muestra lo último que se descargó y lo que está en cola.' : e.message; }
+  const pend=((await pintarCola())||[]).filter(it=>it.accion==='guardarVuelo' && it.local);
+  const tol=S.cat.flujos.variacion;
+  S.vuelosLista=vs; const adm=S.user.esAdmin && S.online;
+  if(!vs.length && !pend.length){ box.className='empty'; box.innerHTML=(nota?`<div class="offnote">${esc(nota)}</div>`:'')+'Aún no hay vuelos registrados.'; return; }
+  box.className='';
+  const c=x=>x==null||isNaN(x)?'':(Math.abs(x)<=tol?'v-ok':'v-bad');
+  const fila=(v,ext,pre)=>`<tr${pre?' class="pend"':''}><td>${pre||esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${f(v.areaPoligono,2)}</td><td>${f(v.distanciaMax,0)}</td><td>${f(v.carga,1)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td><td>${f(v.devueltos,2)}</td><td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${c(v.variacion)}"><b>${pct(v.variacion)}</b></td><td class="${c(v.varCaudal)}">${pct(v.varCaudal)}</td><td class="obs">${esc(v.observaciones)}</td>${adm?`<td>${ext}</td>`:''}</tr>`;
+  box.innerHTML=(nota?`<div class="offnote">${esc(nota)}</div>`:'')+`<div class="tw" style="max-height:420px"><table><thead><tr><th>Fecha</th><th>Dron</th><th>Labor</th><th>Área pol.</th><th>Dist. máx</th><th>Carga</th><th>Área real</th><th>Aplicados</th><th>Devueltos</th><th>L/ha teó.</th><th>L/ha real</th><th>% Var</th><th>% Var caudal</th><th>Observaciones</th>${adm?'<th></th>':''}</tr></thead><tbody>${
+    pend.slice().reverse().map(it=>fila(it.local,'',(it.estado==='error'?'⚠':'⏳')+' En cola')).join('') +
+    vs.map(v=>fila(v,`<button class="ed" type="button" title="Editar" data-evue="${v.fila}">✎</button>`)).join('')
+  }</tbody></table></div>`;
 }
 
 /* ================= reportes ================= */
@@ -883,7 +1079,9 @@ function toISO(dmy){ const m=String(dmy).match(/(\d{2})\/(\d{2})\/(\d{4})/); ret
 async function cargarDash(){
   const b=$('bRefrescar'); b.disabled=true; b.innerHTML='<span class="spin"></span>';
   try{
-    const j=await api('dashboard');
+    let j;
+    try{ j=await api('dashboard'); guardarCache('dash',{registros:j.registros,vuelos:j.vuelos}); }
+    catch(e){ const c=leerCache('dash'); if(!c) throw e; j=c; toast('Sin conexión: se muestran los últimos datos descargados',1); }
     S.dash=j.registros.map(r=>Object.assign(r,{iso:toISO(r.fecha)}));
     S.dashV=(j.vuelos||[]).map(v=>Object.assign(v,{iso:toISO(v.fecha)}));
     if(!$('dDesde').value && S.dash.length){
@@ -979,6 +1177,7 @@ function campoE(id,label,val,tipo,opciones){
 }
 function buscarReg(lista,fila){ return (lista||[]).find(x=>x.fila===fila); }
 function abrirEditarCal(fila){
+  if(!S.online) return toast('Para editar registros necesita conexión a internet',1);
   const r=buscarReg(S.hoy,fila)||buscarReg(S.dash,fila); if(!r) return;
   E.tipo='cal'; E.reg=r;
   $('eTitulo').textContent=`Editar calibración ${r.descarga}`;
@@ -1002,6 +1201,7 @@ function abrirEditarCal(fila){
   previewE(); $('mEditar').classList.remove('hidden');
 }
 function abrirEditarVue(fila){
+  if(!S.online) return toast('Para editar registros necesita conexión a internet',1);
   const v=buscarReg(S.vuelosLista,fila)||buscarReg(S.dashV,fila); if(!v) return;
   E.tipo='vue'; E.reg=v;
   $('eTitulo').textContent='Editar vuelo';
@@ -1069,11 +1269,20 @@ function opcionesPct(){
 function dibujar(id,cfg){ if(S.charts[id]) S.charts[id].destroy(); if(window.Chart) S.charts[id]=new Chart($(id),cfg); }
 
 /* ================= inicio ================= */
+if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} }
 (async function(){
-  const t=store.get('cal_token');
+  setConexion(navigator.onLine !== false);
+  await pintarCola();
+  const t=store.get('cal_token'), c=leerCache('sesion');
   if(t){
     S.token=t;
-    try{ const j=await api('catalogos'); entrar(j.usuario,j.catalogos); return; }catch(e){ S.token=null; }
+    if(c && c.usuario && c.catalogos){
+      entrar(c.usuario,c.catalogos);                    // abre al instante, con o sin internet
+      api('catalogos',{}, {timeout:15000}).then(j=>{ guardarCache('sesion',{usuario:j.usuario,catalogos:j.catalogos}); S.user=j.usuario; S.cat=j.catalogos; sincronizar(); }).catch(()=>{});
+      return;
+    }
+    try{ const j=await api('catalogos'); guardarCache('sesion',{usuario:j.usuario,catalogos:j.catalogos}); entrar(j.usuario,j.catalogos); sincronizar(); return; }
+    catch(e){ if(!e.red) S.token=null; }
   }
   cargarUsuarios();
 })();
