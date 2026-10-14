@@ -919,7 +919,8 @@ function pdfReporte_(a, u, nombre) {
     hp.appendText('   INGENIO MADRE TIERRA · Malezas y Madurantes').setFontSize(9).setBold(true).setForegroundColor(VERDE).setFontFamily('Arial');
     const ft = doc.addFooter();
     const fp = ft.getNumChildren() ? ft.getChild(0).asParagraph() : ft.appendParagraph('');
-    fp.setText('Reporte de calibración de boquillas · ' + dmy_(a.desde) + ' al ' + dmy_(a.hasta)).setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+    fp.setText('Reporte de calibración de boquillas · ' + dmy_(a.desde) + ' al ' + dmy_(a.hasta));
+    fp.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
     fp.editAsText().setFontSize(8).setForegroundColor(GRIS).setFontFamily('Arial');
 
     const t0 = body.getChild(0).asParagraph();
@@ -996,11 +997,17 @@ function generarReporte_(u, desde, hasta, enviar) {
   if (desde > hasta) return { ok: false, error: 'La fecha inicial es mayor que la final.' };
   const a = analizar_(desde, hasta);
   const html = htmlReporte_(a, u, 'web');
-  let enviadoA = '';
+  let enviadoA = '', avisoPdf = '';
   if (enviar) {
     if (!u.correo) return { ok: false, error: 'Su usuario no tiene CORREO ELECTRONICO en la pestaña USUARIOS.' };
     const nombre = 'Reporte_calibracion_' + desde + '_a_' + hasta + '.pdf';
-    const pdf = pdfReporte_(a, u, nombre);
+    let pdf;
+    try { pdf = pdfReporte_(a, u, nombre); }
+    catch (err) {
+      // Respaldo: si falla el PDF con logo, se envía igual con un PDF sencillo
+      avisoPdf = 'PDF con logo no disponible (' + (err && err.message || err) + '); se envió un PDF sencillo.';
+      pdf = Utilities.newBlob('<html><head><meta charset="utf-8"></head><body>' + htmlReporte_(a, u, 'web') + '</body></html>', 'text/html', 'r.html').getAs('application/pdf').setName(nombre);
+    }
     MailApp.sendEmail({
       to: u.correo,
       subject: 'Reporte de calibración de boquillas · ' + dmy_(desde) + ' al ' + dmy_(hasta),
@@ -1011,7 +1018,7 @@ function generarReporte_(u, desde, hasta, enviar) {
     });
     enviadoA = u.correo;
   }
-  return { ok: true, enviadoA: enviadoA, html: html, resumen: { total: a.total, dentro: a.dentro, drones: a.drones.length } };
+  return { ok: true, enviadoA: enviadoA, avisoPdf: avisoPdf, html: html, resumen: { total: a.total, dentro: a.dentro, drones: a.drones.length } };
 }
 
 /* ---------- diagnóstico: abrir  URL_DE_LA_APP?action=diag ---------- */
