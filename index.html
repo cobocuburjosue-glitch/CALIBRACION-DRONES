@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Calibración de Boquillas</title>
+<meta name="description" content="Registro de calibración de boquillas de drones — Ingenio Madre Tierra, Malezas y Madurantes">
+<meta name="theme-color" content="#141618">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  /* =========== CONFIGURACIÓN: pegue aquí la URL de su Apps Script (termina en /exec) =========== */
+  const API_URL = 'PEGAR_AQUI_LA_URL_DEL_APPS_SCRIPT';
+</script>
+<style>
+:root{
+  --ink:#141618; --ink-2:#23272b; --ink-3:#3a4046;
+  --paper:#f4f5f2; --card:#ffffff; --line:#dfe2dc;
+  --text:#1b1e21; --muted:#6b7279;
+  --accent:#3f8f3a; --accent-ink:#ffffff; --accent-soft:#e3f0e1;
+  --ok:#2f8a46; --ok-soft:#e1f2e5;
+  --bad:#c0392b; --bad-soft:#fbe5e2;
+  --warn:#b7791f; --warn-soft:#fbf0dc;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--text);font:15px/1.45 'Barlow',system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+h1,h2,h3{font-family:'Barlow Condensed','Barlow',sans-serif;letter-spacing:.01em;margin:0}
+button,input,select{font:inherit;color:inherit}
+.hidden{display:none!important}
+
+/* ---------- login ---------- */
+#login{min-height:100vh;display:grid;place-items:center;background:radial-gradient(1200px 600px at 50% -10%,#2b3035 0,var(--ink) 60%);padding:24px 16px}
+.login-card{width:100%;max-width:380px;text-align:center;color:#fff}
+.login-card img{width:150px;margin:0 auto 18px;display:block}
+.login-card h1{font-size:30px;text-transform:uppercase}
+.login-card p.sub{color:#aeb4ba;margin:4px 0 26px;font-size:14px}
+.login-card form{background:#fff;color:var(--text);border-radius:var(--radius);padding:22px;text-align:left;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.login-card .err{color:var(--bad);font-size:14px;min-height:20px;margin-top:8px}
+.foot{color:#7d848b;font-size:12px;margin-top:18px}
+
+/* ---------- form controls ---------- */
+label{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+.field{margin-bottom:14px}
+input[type=text],input[type=password],input[type=number],input[type=date],select{
+  width:100%;height:46px;padding:0 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;outline:none;transition:border-color .15s}
+input:focus,select:focus{border-color:var(--accent)}
+input[type=number]{font-variant-numeric:tabular-nums}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 20px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:700;letter-spacing:.02em;cursor:pointer;width:100%;font-size:16px}
+.btn:disabled{opacity:.55;cursor:wait}
+.btn.ghost{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+.btn.dark{background:var(--ink)}
+.spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ---------- shell ---------- */
+header.top{background:var(--ink);color:#fff;position:sticky;top:0;z-index:10}
+.top-in{max-width:1100px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.top-in img{height:42px}
+.top-in .who{flex:1;min-width:0}
+.top-in .who b{display:block;font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-in .who span{font-size:12px;color:#aeb4ba}
+.top-in button{background:transparent;border:1px solid #3a4046;color:#d7dbdf;border-radius:8px;height:34px;padding:0 12px;cursor:pointer;font-size:13px}
+nav.tabs{background:var(--ink-2);overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+.tabs-in{max-width:1100px;margin:0 auto;display:flex;padding:0 8px}
+.tabs-in button{background:none;border:0;color:#aeb4ba;padding:12px 14px;font-weight:600;white-space:nowrap;cursor:pointer;border-bottom:3px solid transparent;font-size:14px}
+.tabs-in button.on{color:#fff;border-bottom-color:var(--accent)}
+main{max-width:1100px;margin:0 auto;padding:18px 16px 60px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:16px}
+.card h2{font-size:20px;margin-bottom:12px;text-transform:uppercase}
+.card h2 small{font-family:'Barlow',system-ui,sans-serif;font-size:13px;text-transform:none;color:var(--muted);font-weight:500;margin-left:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 14px}
+@media (max-width:640px){.grid2,.grid3{grid-template-columns:minmax(0,1fr)}}
+.cols{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+
+/* chips de datos automáticos */
+.auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:4px}
+.auto div{background:var(--paper);border-radius:10px;padding:8px 10px}
+.auto small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.auto b{font-size:17px;font-variant-numeric:tabular-nums}
+
+/* boquillas */
+.boq{border:1.5px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;transition:border-color .2s,background .2s}
+.boq.ok{border-color:var(--ok);background:var(--ok-soft)}
+.boq.bad{border-color:var(--bad);background:var(--bad-soft)}
+.boq-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.boq-h h3{font-size:18px}
+.boq-h .pct{font-weight:700;font-variant-numeric:tabular-nums}
+.boq input{font-size:22px;height:54px;font-weight:600}
+.lmin{font-size:12px;color:var(--muted);margin-top:4px;min-height:16px}
+.gauge{position:relative;height:12px;background:#e9ebe6;border-radius:6px;margin:14px 0 4px}
+.gauge .band{position:absolute;top:0;bottom:0;background:#bfe0c4;border-radius:6px}
+.gauge .mk{position:absolute;top:-5px;width:4px;height:22px;border-radius:2px;background:var(--ink);transform:translateX(-2px);transition:left .25s}
+.gauge-l{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* resultado */
+.res{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.res div{background:var(--paper);border-radius:10px;padding:10px 12px}
+.res small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.res b{font-size:20px;font-variant-numeric:tabular-nums}
+.status{margin:12px 0;border-radius:12px;padding:14px;text-align:center;font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;font-size:22px;letter-spacing:.04em;text-transform:uppercase}
+.status.ok{background:var(--ok);color:#fff}
+.status.bad{background:var(--bad);color:#fff}
+.status.idle{background:var(--paper);color:var(--muted);font-size:16px}
+.v-ok{color:var(--ok)} .v-bad{color:var(--bad)}
+
+.photo{display:flex;align-items:center;gap:12px;border:1.5px dashed var(--line);border-radius:12px;padding:12px;cursor:pointer}
+.photo img{width:64px;height:64px;object-fit:cover;border-radius:8px;background:var(--paper)}
+.photo span{color:var(--muted);font-size:14px}
+
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(140%);background:var(--ink);color:#fff;padding:14px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);transition:transform .25s;z-index:50;max-width:calc(100% - 32px);font-weight:500}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--bad)}
+
+/* tablas */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th{background:var(--ink-2);color:#fff;font-weight:600;text-align:left;padding:8px 10px;white-space:nowrap;position:sticky;top:0}
+td{padding:8px 10px;border-top:1px solid var(--line);white-space:nowrap}
+tr:nth-child(even) td{background:#fafbf8}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.03em}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.bad{background:var(--bad-soft);color:var(--bad)}
+a{color:var(--accent)}
+.empty{color:var(--muted);text-align:center;padding:24px}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+@media (max-width:760px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+.kpi small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.kpi b{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+.chartbox{position:relative;height:300px}
+.filters{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:end}
+@media (max-width:760px){.filters{grid-template-columns:1fr 1fr}}
+.filters .field{margin:0}
+
+/* tarjetas por dron */
+.drones{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.dcard{border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:10px;padding:10px 12px;background:#fff}
+.dcard.bad{border-left-color:var(--bad)}
+.dcard h3{font-size:18px}
+.dcard p{margin:2px 0;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dcard p b{color:var(--text)}
+
+.inline-actions{display:flex;gap:10px;margin-top:6px}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<section id="login">
+  <div class="login-card">
+    <img src="logo.png" alt="Ingenio Madre Tierra">
+    <h1>Calibración de boquillas</h1>
+    <p class="sub">Departamento de Malezas y Madurantes</p>
+    <form id="fLogin" autocomplete="on">
+      <div class="field">
+        <label for="lUser">Usuario</label>
+        <select id="lUser" required><option value="">Cargando…</option></select>
+      </div>
+      <div class="field">
+        <label for="lPass">Contraseña</label>
+        <input id="lPass" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn" id="bLogin" type="submit">Ingresar</button>
+      <div class="err" id="lErr"></div>
+    </form>
+    <div class="foot">Soluciones TACA · Ingenio Madre Tierra</div>
+  </div>
+</section>
+
+<!-- ===================== APP ===================== -->
+<section id="app" class="hidden">
+  <header class="top">
+    <div class="top-in">
+      <img src="logo.png" alt="">
+      <div class="who"><b id="saludo">Hola</b><span id="cargo"></span></div>
+      <button id="bSalir" type="button">Salir</button>
+    </div>
+    <nav class="tabs"><div class="tabs-in" id="tabs">
+      <button data-v="calibrar" class="on">Calibrar</button>
+      <button data-v="hoy">Hoy</button>
+      <button data-v="flujos" class="hidden" id="tFlujos">Medidor de flujos</button>
+      <button data-v="dash" class="hidden" id="tDash">Dashboard</button>
+    </div></nav>
+  </header>
+
+  <main>
+    <!-- ---------- CALIBRAR ---------- -->
+    <div id="v-calibrar">
+      <form id="fCal" class="cols" novalidate>
+        <div>
+          <div class="card">
+            <h2>Datos de la calibración</h2>
+            <div class="grid2">
+              <div class="field"><label for="cFecha">Fecha</label><input id="cFecha" type="date" required></div>
+              <div class="field"><label for="cSup">Supervisor</label><select id="cSup" required></select></div>
+              <div class="field"><label for="cDron">Tipo de dron</label><select id="cDron" required></select></div>
+              <div class="field"><label for="cLabor">Labor</label><select id="cLabor" required></select></div>
+              <div class="field"><label for="cTiempo">Tiempo de calibración (min)</label><input id="cTiempo" type="number" inputmode="decimal" step="0.1" min="0.1" value="1" required></div>
+            </div>
+            <label>Datos automáticos</label>
+            <div class="auto">
+              <div><small>L/ha teórico</small><b id="aLha">—</b></div>
+              <div><small>Velocidad</small><b id="aVel">—</b></div>
+              <div><small>Velocidad</small><b id="aKmh">—</b></div>
+              <div><small>Ancho de faja</small><b id="aAncho">—</b></div>
+              <div><small>Caudal total</small><b id="aCaudal">—</b></div>
+              <div><small>Caudal / boquilla</small><b id="aQb">—</b></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Descarga por boquilla <small>litros recolectados</small></h2>
+            <div class="boq" id="boq1">
+              <div class="boq-h"><h3>Boquilla 1</h3><span class="pct" id="p1"></span></div>
+              <input id="cB1" type="number" inputmode="decimal" step="0.001" min="0" placeholder="0.000" required>
+              <div class="lmin" id="l1"></div>
+              <div class="gauge"><div class="band" id="g1b"></div><div class="mk" id="g1m" style="left:50%"></div></div>
+            </div>
+            <div class="boq" id="boq2">
+              <div class="boq-h"><h3>Boquilla 2</h3><span class="pct" id="p2"></span></div>
+              <input id="cB2" type="number" inputmode="decimal" step="0.001" min="0" placeholder="0.000" required>
+              <div class="lmin" id="l2"></div>
+              <div class="gauge"><div class="band" id="g2b"></div><div class="mk" id="g2m" style="left:50%"></div></div>
+            </div>
+            <div class="gauge-l"><span>Rango permitido</span><span id="gRango">—</span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <h2>Resultado</h2>
+            <div class="status idle" id="estado">Ingrese ambas boquillas</div>
+            <div class="res">
+              <div><small>Diferencia B1 − B2</small><b id="rDif">—</b></div>
+              <div><small>Significancia</small><b id="rSig">—</b></div>
+              <div><small>Variación B1</small><b id="rV1">—</b></div>
+              <div><small>Variación B2</small><b id="rV2">—</b></div>
+              <div><small>Descarga general</small><b id="rDesc">—</b></div>
+              <div><small>Variación general</small><b id="rVG">—</b></div>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Foto del dron <small>opcional</small></h2>
+            <label class="photo" for="cFoto">
+              <img id="fPrev" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+              <span id="fTxt">Tomar o elegir foto</span>
+            </label>
+            <input id="cFoto" type="file" accept="image/*" capture="environment" class="hidden">
+          </div>
+          <button class="btn" id="bGuardar" type="submit">Guardar calibración</button>
+          <div class="inline-actions"><button class="btn ghost" type="button" id="bLimpiar">Limpiar boquillas</button></div>
+        </div>
+      </form>
+    </div>
+
+    <!-- ---------- HOY ---------- -->
+    <div id="v-hoy" class="hidden">
+      <div class="card">
+        <h2>Calibraciones de hoy <small id="hoyFecha"></small></h2>
+        <div id="hoyBody" class="empty">Cargando…</div>
+      </div>
+    </div>
+
+    <!-- ---------- MEDIDOR DE FLUJOS ---------- -->
+    <div id="v-flujos" class="hidden">
+      <div class="cols">
+        <div class="card">
+          <h2>Medidor de flujos <small>L/ha → L/min</small></h2>
+          <div class="grid2">
+            <div class="field"><label for="mDron">Dron (carga velocidad y ancho)</label><select id="mDron"></select></div>
+            <div class="field"><label for="mLabor">Labor (carga L/ha base)</label><select id="mLabor"></select></div>
+          </div>
+          <div class="grid3">
+            <div class="field"><label for="mBase">L/ha base</label><input id="mBase" type="number" step="0.1" inputmode="decimal"></div>
+            <div class="field"><label for="mMin">L/ha mínimo</label><input id="mMin" type="number" step="0.1" inputmode="decimal"></div>
+            <div class="field"><label for="mMax">L/ha máximo</label><input id="mMax" type="number" step="0.1" inputmode="decimal"></div>
+            <div class="field"><label for="mVel">Velocidad (m/s)</label><input id="mVel" type="number" step="0.1" inputmode="decimal"></div>
+            <div class="field"><label for="mAncho">Ancho de faja (m)</label><input id="mAncho" type="number" step="0.1" inputmode="decimal"></div>
+            <div class="field"><label for="mVar">% variación máx.</label><input id="mVar" type="number" step="0.5" inputmode="decimal"></div>
+          </div>
+          <div class="res">
+            <div><small>Flujo a L/ha base</small><b id="mOut">—</b></div>
+            <div><small>Por boquilla</small><b id="mOutB">—</b></div>
+            <div><small>Flujo a L/ha mínimo</small><b id="mOutMin">—</b></div>
+            <div><small>Flujo a L/ha máximo</small><b id="mOutMax">—</b></div>
+            <div><small>Velocidad</small><b id="mKmh">—</b></div>
+            <div><small>Rango boquilla</small><b id="mRB">—</b></div>
+          </div>
+          <p class="note">Fórmula: L/min = L/ha × velocidad (m/s) × ancho (m) × 60 ÷ 10 000</p>
+          <div class="field" style="margin-top:14px"><label for="mInv">Inverso: flujo medido total (L/min) → L/ha</label>
+            <input id="mInv" type="number" step="0.01" inputmode="decimal" placeholder="Ej. 9.85"></div>
+          <div class="res"><div style="grid-column:1/-1"><small>L/ha resultante</small><b id="mInvOut">—</b></div></div>
+        </div>
+        <div class="card">
+          <h2>Tabla de flujos</h2>
+          <div class="tw"><table><thead><tr><th>L/ha</th><th>L/min</th><th>− var</th><th>+ var</th><th>L/min boquilla</th></tr></thead><tbody id="mTabla"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- DASHBOARD ---------- -->
+    <div id="v-dash" class="hidden">
+      <div class="card">
+        <div class="filters">
+          <div class="field"><label for="dDesde">Desde</label><input id="dDesde" type="date"></div>
+          <div class="field"><label for="dHasta">Hasta</label><input id="dHasta" type="date"></div>
+          <div class="field"><label for="dDron">Dron</label><select id="dDron"><option value="">Todos</option></select></div>
+          <div class="field"><button class="btn dark" type="button" id="bRefrescar">Actualizar</button></div>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><small>Calibraciones</small><b id="kTot">—</b><span id="kTotS"></span></div>
+        <div class="kpi"><small>Dentro de rango</small><b id="kOk">—</b><span id="kOkS"></span></div>
+        <div class="kpi"><small>Variación general prom.</small><b id="kVar">—</b><span>valor absoluto</span></div>
+        <div class="kpi"><small>Drones fuera de rango</small><b id="kFuera">—</b><span>según última calibración</span></div>
+      </div>
+      <div class="card">
+        <h2>Estado actual por dron <small>última calibración</small></h2>
+        <div class="drones" id="dCards"></div>
+      </div>
+      <div class="cols">
+        <div class="card"><h2>Variación por boquilla <small>última calibración</small></h2><div class="chartbox"><canvas id="ch1"></canvas></div></div>
+        <div class="card"><h2>Variación general en el tiempo</h2><div class="chartbox"><canvas id="ch2"></canvas></div></div>
+      </div>
+      <div class="card">
+        <h2>Registros</h2>
+        <div class="tw" style="max-height:480px"><table>
+          <thead><tr><th>Fecha</th><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>B1</th><th>B2</th><th>Var B1</th><th>Var B2</th><th>Var gral.</th><th>Mín–Máx</th><th>Estado</th><th>Foto</th></tr></thead>
+          <tbody id="dTabla"></tbody></table></div>
+      </div>
+    </div>
+  </main>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= estado ================= */
+const S = { token:null, user:null, cat:null, foto:null, dash:[], charts:{} };
+const $ = id => document.getElementById(id);
+const store = {
+  get(k){ try{ return localStorage.getItem(k) }catch(e){ return null } },
+  set(k,v){ try{ localStorage.setItem(k,v) }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k) }catch(e){} }
+};
+const f = (n,d=3) => (n==null||isNaN(n)) ? '—' : Number(n).toLocaleString('es-GT',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct = (n,d=2) => (n==null||isNaN(n)) ? '—' : (n>0?'+':'') + (n*100).toLocaleString('es-GT',{minimumFractionDigits:d,maximumFractionDigits:d}) + '%';
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg, err){
+  const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' err':'');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.className='toast'+(err?' err':''),3800);
+}
+
+async function api(action, extra={}){
+  if(!/^https:\/\/script\.google\.com\//.test(API_URL)) throw new Error('Falta configurar API_URL en index.html');
+  const r = await fetch(API_URL,{method:'POST',body:JSON.stringify(Object.assign({action, token:S.token}, extra))});
+  const j = await r.json();
+  if(j.sesion===false){ salir(true); throw new Error(j.error); }
+  if(!j.ok) throw new Error(j.error||'Error');
+  return j;
+}
+
+function hoyISO(){
+  const p = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Guatemala',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  return p; // yyyy-mm-dd
+}
+function saludoHora(){
+  const h = +new Intl.DateTimeFormat('en-US',{timeZone:'America/Guatemala',hour:'numeric',hour12:false}).format(new Date());
+  return h<12 ? 'Buenos días' : h<19 ? 'Buenas tardes' : 'Buenas noches';
+}
+
+/* ================= login ================= */
+async function cargarUsuarios(){
+  try{
+    const j = await api('usuarios');
+    const last = store.get('cal_user')||'';
+    $('lUser').innerHTML = '<option value="">Seleccione…</option>' + j.usuarios.map(u=>`<option ${u===last?'selected':''}>${esc(u)}</option>`).join('');
+  }catch(e){ $('lUser').innerHTML='<option value="">Sin conexión</option>'; $('lErr').textContent=e.message; }
+}
+$('fLogin').addEventListener('submit', async ev=>{
+  ev.preventDefault(); $('lErr').textContent='';
+  const b=$('bLogin'); b.disabled=true; b.innerHTML='<span class="spin"></span>Ingresando';
+  try{
+    const j = await api('login',{usuario:$('lUser').value,password:$('lPass').value});
+    S.token=j.token; store.set('cal_token',j.token); store.set('cal_user',j.usuario.nombre);
+    entrar(j.usuario,j.catalogos);
+  }catch(e){ $('lErr').textContent=e.message }
+  b.disabled=false; b.textContent='Ingresar';
+});
+function salir(silencioso){
+  if(!silencioso && S.token) api('logout').catch(()=>{});
+  S.token=null; store.del('cal_token');
+  $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('lPass').value='';
+  if(!$('lUser').options.length || $('lUser').options.length<2) cargarUsuarios();
+}
+$('bSalir').onclick=()=>salir();
+
+function entrar(user, cat){
+  S.user=user; S.cat=cat;
+  $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+  $('saludo').textContent = `${saludoHora()}, ${user.nombre.split(' ')[0]}`;
+  $('cargo').textContent = user.cargo || 'Malezas y Madurantes';
+  $('tFlujos').classList.toggle('hidden', !user.permisos.flujos);
+  $('tDash').classList.toggle('hidden', !user.permisos.dashboard);
+  llenarCatalogos();
+  ver('calibrar');
+}
+
+/* ================= navegación ================= */
+$('tabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) ver(b.dataset.v) });
+function ver(v){
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  ['calibrar','hoy','flujos','dash'].forEach(x=>$('v-'+x).classList.toggle('hidden',x!==v));
+  if(v==='hoy') cargarHoy();
+  if(v==='flujos') calcFlujos();
+  if(v==='dash' && !S.dash.length) cargarDash();
+  window.scrollTo({top:0});
+}
+
+/* ================= catálogos ================= */
+function opts(arr, sel, ph){
+  return (ph?`<option value="">${ph}</option>`:'') + arr.map(x=>`<option ${x===sel?'selected':''}>${esc(x)}</option>`).join('');
+}
+function llenarCatalogos(){
+  const c=S.cat;
+  const sup = c.supervisores.includes(S.user.nombre) ? S.user.nombre : '';
+  $('cSup').innerHTML = opts(c.supervisores, sup, 'Seleccione…');
+  $('cDron').innerHTML = opts(c.drones.map(d=>d.dron), store.get('cal_dron')||'', c.drones.length?'Seleccione…':'Sin drones (revise hoja)');
+  $('cLabor').innerHTML = opts(c.labores.map(l=>l.labor), store.get('cal_labor')||'', 'Seleccione…');
+  $('cFecha').value = hoyISO();
+  $('mDron').innerHTML = opts(c.drones.map(d=>d.dron), '', 'Manual');
+  $('mLabor').innerHTML = opts(c.labores.map(l=>l.labor), '', 'Manual');
+  $('dDron').innerHTML = '<option value="">Todos</option>' + c.drones.map(d=>`<option>${esc(d.dron)}</option>`).join('');
+  const p=c.flujos; $('mBase').value=p.base; $('mMin').value=p.min; $('mMax').value=p.max; $('mVel').value=p.vel; $('mAncho').value=p.ancho; $('mVar').value=+(p.variacion*100).toFixed(2);
+  recalcular();
+}
+
+/* ================= cálculo en vivo ================= */
+function calcular(){
+  const dron = S.cat.drones.find(d=>d.dron===$('cDron').value);
+  const lab  = S.cat.labores.find(l=>l.labor===$('cLabor').value);
+  const t = parseFloat($('cTiempo').value)||1;
+  const tol = S.cat.flujos.variacion;
+  const r = { dron, lab, t, tol };
+  if(dron && lab){
+    r.caudal = lab.lha*dron.vel*dron.ancho*60/10000;
+    r.qb = r.caudal/2; r.min=r.qb*(1-tol); r.max=r.qb*(1+tol);
+  }
+  const l1=parseFloat($('cB1').value), l2=parseFloat($('cB2').value);
+  if(!isNaN(l1)) r.b1=l1/t;
+  if(!isNaN(l2)) r.b2=l2/t;
+  return r;
+}
+function pintarBoq(i, val, r){
+  const box=$('boq'+i), p=$('p'+i), l=$('l'+i), band=$('g'+i+'b'), mk=$('g'+i+'m');
+  box.classList.remove('ok','bad'); p.textContent=''; l.textContent='';
+  if(r.qb==null){ band.style.cssText='left:25%;width:50%'; mk.style.left='50%'; return; }
+  const lo=r.qb*(1-r.tol*3), hi=r.qb*(1+r.tol*3), pos=v=>Math.max(0,Math.min(100,(v-lo)/(hi-lo)*100));
+  band.style.left=pos(r.min)+'%'; band.style.width=(pos(r.max)-pos(r.min))+'%';
+  if(val==null){ mk.style.left='50%'; mk.style.opacity=.25; return; }
+  mk.style.opacity=1; mk.style.left=pos(val)+'%';
+  const ok = val>=r.min && val<=r.max;
+  box.classList.add(ok?'ok':'bad');
+  const v=(val-r.qb)/r.qb; p.textContent=pct(v); p.className='pct '+(ok?'v-ok':'v-bad');
+  l.textContent = r.t!==1 ? `${f(val)} L/min (litros ÷ ${f(r.t,1)} min)` : `${f(val)} L/min`;
+}
+function recalcular(){
+  if(!S.cat) return;
+  const r=calcular();
+  $('aLha').textContent = r.lab ? f(r.lab.lha,2)+' L/ha' : '—';
+  $('aVel').textContent = r.dron ? f(r.dron.vel,2)+' m/s' : '—';
+  $('aKmh').textContent = r.dron ? f(r.dron.vel*3.6,2)+' km/h' : '—';
+  $('aAncho').textContent = r.dron ? f(r.dron.ancho,2)+' m' : '—';
+  $('aCaudal').textContent = r.caudal!=null ? f(r.caudal)+' L/min' : '—';
+  $('aQb').textContent = r.qb!=null ? f(r.qb)+' L/min' : '—';
+  $('gRango').textContent = r.qb!=null ? `${f(r.min)} – ${f(r.max)} L/min (±${(r.tol*100).toFixed(0)}%)` : '—';
+  pintarBoq(1,r.b1,r); pintarBoq(2,r.b2,r);
+  const est=$('estado');
+  if(r.qb!=null && r.b1!=null && r.b2!=null){
+    const dif=r.b1-r.b2, desc=r.b1+r.b2;
+    const ok = r.b1>=r.min&&r.b1<=r.max&&r.b2>=r.min&&r.b2<=r.max;
+    $('rDif').textContent=f(dif); $('rSig').textContent=pct(dif/r.lab.lha);
+    $('rV1').textContent=pct((r.b1-r.qb)/r.qb); $('rV2').textContent=pct((r.b2-r.qb)/r.qb);
+    $('rDesc').textContent=f(desc)+' L/min'; $('rVG').textContent=pct((desc-r.caudal)/r.caudal);
+    est.className='status '+(ok?'ok':'bad'); est.textContent = ok?'Dentro de rango':'Fuera de rango — recalibrar';
+  }else{
+    ['rDif','rSig','rV1','rV2','rDesc','rVG'].forEach(id=>$(id).textContent='—');
+    est.className='status idle'; est.textContent = r.qb==null ? 'Seleccione dron y labor' : 'Ingrese ambas boquillas';
+  }
+}
+['cDron','cLabor','cTiempo','cB1','cB2'].forEach(id=>{ $(id).addEventListener('input',recalcular); $(id).addEventListener('change',recalcular); });
+$('cDron').addEventListener('change',()=>store.set('cal_dron',$('cDron').value));
+$('cLabor').addEventListener('change',()=>store.set('cal_labor',$('cLabor').value));
+$('bLimpiar').onclick=()=>{ $('cB1').value=''; $('cB2').value=''; quitarFoto(); recalcular(); $('cB1').focus(); };
+
+/* ================= foto ================= */
+$('cFoto').addEventListener('change', async ()=>{
+  const file=$('cFoto').files[0]; if(!file) return;
+  $('fTxt').textContent='Procesando…';
+  try{
+    S.foto = await comprimir(file, 1600, .8);
+    $('fPrev').src='data:image/jpeg;base64,'+S.foto.data;
+    $('fTxt').textContent = `${file.name} · ${Math.round(S.foto.data.length*.75/1024)} KB`;
+  }catch(e){ $('fTxt').textContent='No se pudo leer la foto'; S.foto=null; }
+});
+function quitarFoto(){ S.foto=null; $('cFoto').value=''; $('fPrev').src='data:image/gif;base64,R0lGODlhAQABAAAAACw='; $('fTxt').textContent='Tomar o elegir foto'; }
+function comprimir(file,max,q){
+  return new Promise((ok,ko)=>{
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{
+      let {width:w,height:h}=img; const s=Math.min(1,max/Math.max(w,h)); w=Math.round(w*s); h=Math.round(h*s);
+      const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url); ok({data:c.toDataURL('image/jpeg',q).split(',')[1], tipo:'image/jpeg'});
+    };
+    img.onerror=ko; img.src=url;
+  });
+}
+
+/* ================= guardar ================= */
+$('fCal').addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  const r=calcular();
+  if(!$('cFecha').value) return toast('Seleccione la fecha',1);
+  if(!$('cSup').value) return toast('Seleccione el supervisor',1);
+  if(!r.dron) return toast('Seleccione el tipo de dron',1);
+  if(!r.lab) return toast('Seleccione la labor',1);
+  if(!(r.b1>0) || !(r.b2>0)) return toast('Ingrese la descarga de ambas boquillas',1);
+  const b=$('bGuardar'); b.disabled=true; b.innerHTML='<span class="spin"></span>Guardando…';
+  try{
+    const j = await api('guardar',{datos:{
+      fecha:$('cFecha').value, supervisor:$('cSup').value, dron:r.dron.dron, labor:r.lab.labor,
+      tiempo:parseFloat($('cTiempo').value)||1, b1:parseFloat($('cB1').value), b2:parseFloat($('cB2').value), foto:S.foto
+    }});
+    toast(`✓ Guardado: ${r.dron.dron} · descarga ${j.descarga} · ${j.calculo.estado.toLowerCase()}`);
+    $('cB1').value=''; $('cB2').value=''; quitarFoto(); recalcular(); S.dash=[];
+  }catch(e){ toast(e.message,1) }
+  b.disabled=false; b.textContent='Guardar calibración';
+});
+
+/* ================= hoy ================= */
+async function cargarHoy(){
+  $('hoyFecha').textContent = new Date(hoyISO()+'T12:00').toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+  $('hoyBody').innerHTML='Cargando…'; $('hoyBody').className='empty';
+  try{
+    const j=await api('hoy');
+    if(!j.registros.length){ $('hoyBody').textContent='Aún no hay calibraciones registradas hoy.'; return; }
+    $('hoyBody').className='';
+    $('hoyBody').innerHTML = `<div class="tw"><table><thead><tr><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>B1</th><th>B2</th><th>Var gral.</th><th>Estado</th></tr></thead><tbody>${
+      j.registros.slice().reverse().map(x=>`<tr><td>${esc(x.descarga)}</td><td><b>${esc(x.dron)}</b></td><td>${esc(x.labor)}</td><td>${esc(x.supervisor)}</td><td>${f(x.b1)}</td><td>${f(x.b2)}</td><td>${pct(x.varGeneral)}</td><td>${pill(x.estado)}</td></tr>`).join('')
+    }</tbody></table></div>`;
+  }catch(e){ $('hoyBody').textContent=e.message }
+}
+function pill(e){ const ok=/DENTRO/i.test(e||''); return e?`<span class="pill ${ok?'ok':'bad'}">${ok?'OK':'FUERA'}</span>`:'' }
+
+/* ================= medidor de flujos ================= */
+function calcFlujos(){
+  const g=id=>parseFloat($(id).value);
+  const base=g('mBase'),mn=g('mMin'),mx=g('mMax'),v=g('mVel'),a=g('mAncho'),vr=(g('mVar')||0)/100;
+  const L=lha=>lha*v*a*60/10000;
+  const okp=!isNaN(v)&&!isNaN(a);
+  $('mOut').textContent = okp&&!isNaN(base)?f(L(base),2)+' L/min':'—';
+  $('mOutB').textContent = okp&&!isNaN(base)?f(L(base)/2,3)+' L/min':'—';
+  $('mOutMin').textContent = okp&&!isNaN(mn)?f(L(mn),2)+' L/min':'—';
+  $('mOutMax').textContent = okp&&!isNaN(mx)?f(L(mx),2)+' L/min':'—';
+  $('mKmh').textContent = !isNaN(v)?f(v*3.6,2)+' km/h':'—';
+  $('mRB').textContent = okp&&!isNaN(base)?`${f(L(base)/2*(1-vr))} – ${f(L(base)/2*(1+vr))}`:'—';
+  const inv=g('mInv'); $('mInvOut').textContent = okp&&!isNaN(inv)&&v*a>0 ? f(inv*10000/(v*a*60),2)+' L/ha' : '—';
+  let rows='';
+  if(okp&&!isNaN(mn)&&!isNaN(mx)&&mx>=mn){
+    for(let x=mn; x<=mx+1e-9; x=Math.round((x+0.5)*100)/100){
+      const q=L(x), isB=Math.abs(x-base)<1e-9;
+      rows+=`<tr${isB?' style="font-weight:700"':''}><td>${f(x,1)}${isB?' ◂ base':''}</td><td>${f(q,2)}</td><td>${f(q*(1-vr),2)}</td><td>${f(q*(1+vr),2)}</td><td>${f(q/2,3)}</td></tr>`;
+      if(rows.length>20000) break;
+    }
+  }
+  $('mTabla').innerHTML = rows || '<tr><td colspan="5" class="empty">Complete los parámetros</td></tr>';
+}
+['mBase','mMin','mMax','mVel','mAncho','mVar','mInv'].forEach(id=>$(id).addEventListener('input',calcFlujos));
+$('mDron').addEventListener('change',()=>{ const d=S.cat.drones.find(x=>x.dron===$('mDron').value); if(d){ $('mVel').value=d.vel; $('mAncho').value=d.ancho; } calcFlujos(); });
+$('mLabor').addEventListener('change',()=>{ const l=S.cat.labores.find(x=>x.labor===$('mLabor').value); if(l){ $('mBase').value=l.lha; } calcFlujos(); });
+
+/* ================= dashboard ================= */
+function toISO(dmy){ const m=String(dmy).match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?`${m[3]}-${m[2]}-${m[1]}`:''; }
+async function cargarDash(){
+  const b=$('bRefrescar'); b.disabled=true; b.innerHTML='<span class="spin"></span>';
+  try{
+    const j=await api('dashboard');
+    S.dash=j.registros.map(r=>Object.assign(r,{iso:toISO(r.fecha)}));
+    if(!$('dDesde').value && S.dash.length){
+      const d=new Date(hoyISO()+'T12:00'); d.setDate(d.getDate()-30); $('dDesde').value=d.toISOString().slice(0,10);
+    }
+    pintarDash();
+  }catch(e){ toast(e.message,1) }
+  b.disabled=false; b.textContent='Actualizar';
+}
+$('bRefrescar').onclick=cargarDash;
+['dDesde','dHasta','dDron'].forEach(id=>$(id).addEventListener('change',pintarDash));
+
+function pintarDash(){
+  const de=$('dDesde').value, ha=$('dHasta').value, dr=$('dDron').value;
+  const rows=S.dash.filter(r=>(!de||r.iso>=de)&&(!ha||r.iso<=ha)&&(!dr||r.dron===dr));
+  const ok=rows.filter(r=>/DENTRO/i.test(r.estado)).length;
+  $('kTot').textContent=rows.length; $('kTotS').textContent=`${new Set(rows.map(r=>r.dron)).size} drones`;
+  $('kOk').textContent=rows.length?Math.round(ok/rows.length*100)+'%':'—'; $('kOkS').textContent=`${ok} de ${rows.length}`;
+  const vg=rows.filter(r=>r.varGeneral!=null);
+  $('kVar').textContent=vg.length?(vg.reduce((s,r)=>s+Math.abs(r.varGeneral),0)/vg.length*100).toFixed(2)+'%':'—';
+
+  // última por dron (orden por fecha y descarga)
+  const key=r=>r.iso+'|'+String(r.descarga).replace(/\D/g,'').padStart(4,'0');
+  const ult={}; rows.forEach(r=>{ if(!ult[r.dron]||key(r)>=key(ult[r.dron])) ult[r.dron]=r; });
+  const last=Object.values(ult).sort((a,b)=>a.dron.localeCompare(b.dron,'es',{numeric:true}));
+  $('kFuera').textContent=last.filter(r=>!/DENTRO/i.test(r.estado)).length;
+  $('dCards').innerHTML = last.length ? last.map(r=>{ const okk=/DENTRO/i.test(r.estado); return `<div class="dcard ${okk?'':'bad'}">
+      <h3>${esc(r.dron)} ${pill(r.estado)}</h3>
+      <p>${esc(r.fecha)} · ${esc(r.descarga)} · ${esc(r.labor||'')}</p>
+      <p>B1 <b>${f(r.b1)}</b> (${pct(r.varB1,1)}) · B2 <b>${f(r.b2)}</b> (${pct(r.varB2,1)})</p>
+      <p>Rango ${f(r.min)} – ${f(r.max)} L/min</p></div>` }).join('') : '<div class="empty">Sin registros en el período.</div>';
+
+  // gráfica 1: var B1/B2 última calibración
+  const tol=S.cat.flujos.variacion*100;
+  dibujar('ch1',{type:'bar',data:{labels:last.map(r=>r.dron),datasets:[
+    {label:'Boquilla 1',data:last.map(r=>+(r.varB1*100).toFixed(2)),backgroundColor:'#3f8f3a',borderRadius:4},
+    {label:'Boquilla 2',data:last.map(r=>+(r.varB2*100).toFixed(2)),backgroundColor:'#9bc89a',borderRadius:4},
+    {type:'line',label:`+${tol}%`,data:last.map(()=>tol),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.5},
+    {type:'line',label:`−${tol}%`,data:last.map(()=>-tol),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.5}
+  ]},options:opcionesPct()});
+
+  // gráfica 2: variación general en el tiempo por dron
+  const fechas=[...new Set(rows.map(r=>r.iso))].sort();
+  const drones=[...new Set(rows.map(r=>r.dron))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true})).slice(0,8);
+  const pal=['#3f8f3a','#1f5f8b','#b7791f','#7a4fa0','#c0392b','#2a9d8f','#5b6470','#d4a017'];
+  dibujar('ch2',{type:'line',data:{labels:fechas.map(x=>x.slice(8,10)+'/'+x.slice(5,7)),datasets:drones.map((d,i)=>({
+    label:d, borderColor:pal[i], backgroundColor:pal[i], tension:.25, spanGaps:true, pointRadius:3,
+    data:fechas.map(fe=>{ const rr=rows.filter(r=>r.dron===d&&r.iso===fe&&r.varGeneral!=null); return rr.length? +(rr.reduce((s,r)=>s+r.varGeneral,0)/rr.length*100).toFixed(2):null; })
+  }))},options:opcionesPct()});
+
+  $('dTabla').innerHTML = rows.length ? rows.slice().sort((a,b)=>key(b).localeCompare(key(a))).map(r=>`<tr>
+    <td>${esc(r.fecha)}</td><td>${esc(r.descarga)}</td><td><b>${esc(r.dron)}</b></td><td>${esc(r.labor)}</td><td>${esc(r.supervisor)}</td>
+    <td>${f(r.b1)}</td><td>${f(r.b2)}</td><td>${pct(r.varB1)}</td><td>${pct(r.varB2)}</td><td>${pct(r.varGeneral)}</td>
+    <td>${f(r.min)} – ${f(r.max)}</td><td>${pill(r.estado)}</td><td>${/^https?:/.test(r.foto)?`<a href="${esc(r.foto)}" target="_blank" rel="noopener">Ver</a>`:''}</td></tr>`).join('')
+    : '<tr><td colspan="13" class="empty">Sin registros</td></tr>';
+}
+function opcionesPct(){
+  return {responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:"'Barlow',system-ui,sans-serif"}}},
+      tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':c.parsed.y.toFixed(2)+'%'}`}}},
+    scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#eceee9'}},x:{grid:{display:false}}}};
+}
+function dibujar(id,cfg){ if(S.charts[id]) S.charts[id].destroy(); if(window.Chart) S.charts[id]=new Chart($(id),cfg); }
+
+/* ================= inicio ================= */
+(async function(){
+  const t=store.get('cal_token');
+  if(t){
+    S.token=t;
+    try{ const j=await api('catalogos'); entrar(j.usuario,j.catalogos); return; }catch(e){ S.token=null; }
+  }
+  cargarUsuarios();
+})();
+</script>
+</body>
+</html>
