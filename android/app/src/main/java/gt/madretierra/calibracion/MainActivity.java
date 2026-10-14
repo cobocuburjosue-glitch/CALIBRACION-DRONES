@@ -1,6 +1,18 @@
 package gt.madretierra.calibracion;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
+import org.json.JSONObject;
+import java.io.BufferedReader;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import android.content.ClipData;
 import android.content.Intent;
 import android.graphics.Color;
@@ -23,6 +35,10 @@ public class MainActivity extends Activity {
 
     private static final String URL_APP = "https://cobocuburjosue-glitch.github.io/CALIBRACION-DRONES/";
     private static final int REQ_FOTO = 41;
+    private static final String URL_VERSION = URL_APP + "descargas/version.json";
+    private final Handler ui = new Handler(Looper.getMainLooper());
+    private File apkPendiente;
+    private AlertDialog dlgDescarga;
 
     private WebView web;
     private ValueCallback<Uri[]> callbackFoto;
@@ -79,6 +95,101 @@ public class MainActivity extends Activity {
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl(URL_APP);
+
+        buscarActualizacion();
+    }
+
+    /* ================= actualización automática (siempre con permiso del usuario) ================= */
+
+    private long versionInstalada() {
+        try {
+            android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+            return Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
+        } catch (Exception e) { return 0; }
+    }
+
+    private void buscarActualizacion() {
+        new Thread(() -> {
+            try {
+                HttpURLConnection c = (HttpURLConnection) new URL(URL_VERSION + "?t=" + System.currentTimeMillis()).openConnection();
+                c.setConnectTimeout(8000); c.setReadTimeout(8000); c.setUseCaches(false);
+                if (c.getResponseCode() != 200) return;
+                StringBuilder sb = new StringBuilder();
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream()))) {
+                    String l; while ((l = br.readLine()) != null) sb.append(l);
+                }
+                JSONObject j = new JSONObject(sb.toString());
+                long nueva = j.optLong("versionCode", 0);
+                String nombre = j.optString("versionName", "");
+                String url = j.optString("url", URL_APP + "descargas/calibracion-drones.apk");
+                if (nueva > versionInstalada()) ui.post(() -> ofrecerActualizacion(nombre, url));
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
+    private void ofrecerActualizacion(String nombre, String url) {
+        if (isFinishing()) return;
+        new AlertDialog.Builder(this)
+            .setTitle("Nueva versión disponible")
+            .setMessage("Hay una nueva versión de la app (" + nombre + ").\n\n¿Desea descargarla e instalarla ahora?")
+            .setPositiveButton("Actualizar", (d, w) -> descargarApk(url))
+            .setNegativeButton("Más tarde", null)
+            .show();
+    }
+
+    private void descargarApk(String url) {
+        dlgDescarga = new AlertDialog.Builder(this).setTitle("Descargando actualización").setMessage("0 %").setCancelable(false).show();
+        new Thread(() -> {
+            try {
+                File dir = new File(getCacheDir(), "actualizaciones");
+                if (!dir.exists()) dir.mkdirs();
+                File f = new File(dir, "calibracion-drones.apk");
+                HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                c.setInstanceFollowRedirects(true); c.setConnectTimeout(15000); c.setReadTimeout(30000);
+                long total = c.getContentLengthLong(), leido = 0; int ultimo = -1;
+                try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(f)) {
+                    byte[] buf = new byte[16384]; int n;
+                    while ((n = in.read(buf)) > 0) {
+                        out.write(buf, 0, n); leido += n;
+                        if (total > 0) {
+                            int pct = (int) (leido * 100 / total);
+                            if (pct != ultimo) { ultimo = pct; ui.post(() -> { if (dlgDescarga != null) dlgDescarga.setMessage(pct + " %"); }); }
+                        }
+                    }
+                }
+                ui.post(() -> { cerrarDlg(); apkPendiente = f; instalarApk(); });
+            } catch (Exception e) {
+                ui.post(() -> { cerrarDlg(); new AlertDialog.Builder(this).setTitle("No se pudo descargar").setMessage("Revise su conexión e intente más tarde.").setPositiveButton("OK", null).show(); });
+            }
+        }).start();
+    }
+
+    private void cerrarDlg() { if (dlgDescarga != null) { try { dlgDescarga.dismiss(); } catch (Exception ignored) {} dlgDescarga = null; } }
+
+    private void instalarApk() {
+        if (apkPendiente == null) return;
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+            new AlertDialog.Builder(this)
+                .setTitle("Permiso para instalar")
+                .setMessage("Para instalar la actualización, active \"Permitir de esta fuente\" para la app Calibración y luego regrese.")
+                .setPositiveButton("Ir a ajustes", (d, w) -> startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))))
+                .setNegativeButton("Cancelar", (d, w) -> apkPendiente = null)
+                .show();
+            return;
+        }
+        Uri u = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", apkPendiente);
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setDataAndType(u, "application/vnd.android.package-archive");
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+        apkPendiente = null;
+        try { startActivity(i); } catch (Exception ignored) {}
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // si el usuario volvió de ajustes después de dar el permiso, continúa la instalación
+        if (apkPendiente != null && (Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls())) instalarApk();
     }
 
     private String BuildConfigVersion() {

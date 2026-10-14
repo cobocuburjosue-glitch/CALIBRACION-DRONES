@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 jobs:
   build:
@@ -58,3 +59,20 @@ jobs:
             Descarga directa: https://github.com/${{ github.repository }}/releases/download/apk/calibracion-drones.apk
           files: calibracion-drones.apk
           make_latest: true
+
+      - name: Publicar APK en la página (descarga directa + actualizaciones)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p descargas
+          cp calibracion-drones.apk descargas/calibracion-drones.apk
+          cat > descargas/version.json <<JSON
+          {"versionCode": ${{ github.run_number }}, "versionName": "1.0.${{ github.run_number }}", "url": "https://cobocuburjosue-glitch.github.io/CALIBRACION-DRONES/descargas/calibracion-drones.apk"}
+          JSON
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add descargas
+          git commit -m "APK 1.0.${{ github.run_number }}" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" || true

@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-  const APK_URL = 'https://github.com/cobocuburjosue-glitch/CALIBRACION-DRONES/releases/download/apk/calibracion-drones.apk';
+  const APK_URL = 'descargas/calibracion-drones.apk';
   /* =========== CONFIGURACIÓN: pegue aquí la URL de su Apps Script (termina en /exec) =========== */
   const API_URL = 'https://script.google.com/macros/s/AKfycbx85tTKwFvkPBKEod0q1lTb5rFN7nDxTHyYR7GPs2yQ26xttpHwFRhCu62gkkNxHxmgIw/exec';
 </script>
@@ -429,13 +429,14 @@ a{color:var(--accent)}
     <p style="margin:0;color:var(--muted);font-size:14px">App de Calibración de Boquillas para Android.</p>
     <p class="hidden" id="instNota" style="margin:10px 0 0;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:13px">La APK es para celulares Android: abra esta página desde el celular para instalarla.</p>
     <ol>
-      <li>Toque <b>Descargar APK</b>.</li>
-      <li>Abra el archivo descargado <b>calibracion-drones.apk</b>.</li>
-      <li>Si Android lo pide, permita <b>“Instalar apps desconocidas”</b> para su navegador.</li>
-      <li>Toque <b>Instalar</b> y luego <b>Abrir</b>.</li>
+      <li>Toque <b>Descargar e instalar</b>. Si Chrome avisa que el archivo puede ser dañino, toque <b>Descargar de todas formas</b>.</li>
+      <li>Al terminar, toque <b>Abrir</b> en el aviso de descarga: se abre el instalador de Android.</li>
+      <li>Si lo pide, active <b>“Permitir de esta fuente”</b> para Chrome y regrese.</li>
+      <li>Toque <b>Instalar</b>. Si aparece Play Protect, toque <b>Más detalles › Instalar de todas formas</b>.</li>
     </ol>
+    <p style="margin:-6px 0 14px;font-size:12px;color:var(--muted)">Ya instalada, la app se actualiza sola: cuando haya una versión nueva le preguntará si desea instalarla.</p>
     <div class="row">
-      <a class="btn" id="aApk" href="#" download>Descargar APK</a>
+      <a class="btn" id="aApk" href="#" download="calibracion-drones.apk" type="application/vnd.android.package-archive">Descargar e instalar</a>
       <button class="btn ghost" type="button" id="bCerrarInst">Cerrar</button>
     </div>
   </div>
