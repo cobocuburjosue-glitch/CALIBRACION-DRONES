@@ -219,15 +219,16 @@ function drones_() {
   const cBq  = busca(x => x.indexOf('BOQUILLA') >= 0);
   const col0 = cNom >= 0 ? cNom : 0;
   const out = [];
-  v.slice(hr + 1).forEach(r => {
+  for (const r of v.slice(hr + 1)) {
     const nombre = String(r[col0] || '').trim();
-    if (!nombre) return;
+    if (!nombre) { if (out.length) break; else continue; }       // fin de la tabla de drones
+    if (!/[A-Z]/i.test(nombre) || !/\d/.test(nombre) || /^\d+[.)]/.test(nombre)) continue;  // solo nombres tipo T40-1
     let vel = cMs >= 0 ? num_(r[cMs]) : NaN;
     if (isNaN(vel) && cKm >= 0) vel = num_(r[cKm]) / 3.6;
     const ancho = cAn >= 0 ? num_(r[cAn]) : NaN;
-    if (isNaN(vel) || isNaN(ancho)) return;
+    if (isNaN(vel) || isNaN(ancho)) continue;
     out.push({ dron: nombre, vel: r_(vel, 3), ancho: ancho, boquillas: cBq >= 0 && !isNaN(num_(r[cBq])) ? num_(r[cBq]) : BOQUILLAS });
-  });
+  }
   return out;
 }
 

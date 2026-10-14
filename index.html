@@ -433,18 +433,22 @@ function ver(v){
 }
 
 /* ================= catálogos ================= */
-function opts(arr, sel, ph){
-  return (ph?`<option value="">${ph}</option>`:'') + arr.map(x=>`<option ${x===sel?'selected':''}>${esc(x)}</option>`).join('');
+function opts(arr, sel, ph, txt){
+  return (ph?`<option value="">${ph}</option>`:'') + arr.map(x=>`<option value="${esc(x)}" ${x===sel?'selected':''}>${esc(txt?txt(x):x)}</option>`).join('');
 }
+/* solo nombres de dron válidos (ej. T40-1, T100-3): con letras y que no sean números ni títulos "1. ..." */
+const esDron = n => /[A-Za-z]/.test(n) && !/^\s*\d+[.)]/.test(n) && /\d/.test(n) && n.length<=20;
+const lhaTxt = l => { const x=(S.cat.labores.find(y=>y.labor===l)||{}).lha; return x!=null ? `${l} · ${f(x,x%1?2:0)} L/ha` : l; };
 function llenarCatalogos(){
   const c=S.cat;
+  c.drones = c.drones.filter(d=>esDron(String(d.dron)));
   const sup = c.supervisores.includes(S.user.nombre) ? S.user.nombre : '';
   $('cSup').innerHTML = opts(c.supervisores, sup, 'Seleccione…');
   $('cDron').innerHTML = opts(c.drones.map(d=>d.dron), store.get('cal_dron')||'', c.drones.length?'Seleccione…':'Sin drones (revise hoja)');
-  $('cLabor').innerHTML = opts(c.labores.map(l=>l.labor), store.get('cal_labor')||'', 'Seleccione…');
+  $('cLabor').innerHTML = opts(c.labores.map(l=>l.labor), store.get('cal_labor')||'', 'Seleccione…', lhaTxt);
   $('cFecha').value = hoyISO();
   $('mDron').innerHTML = opts(c.drones.map(d=>d.dron), '', 'Manual');
-  $('mLabor').innerHTML = opts(c.labores.map(l=>l.labor), '', 'Manual');
+  $('mLabor').innerHTML = opts(c.labores.map(l=>l.labor), '', 'Manual', lhaTxt);
   $('dDron').innerHTML = '<option value="">Todos</option>' + c.drones.map(d=>`<option>${esc(d.dron)}</option>`).join('');
   const p=c.flujos; $('mBase').value=p.base; $('mMin').value=p.min; $('mMax').value=p.max; $('mVel').value=p.vel; $('mAncho').value=p.ancho; $('mVar').value=+(p.variacion*100).toFixed(2);
   recalcular();
