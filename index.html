@@ -1069,18 +1069,17 @@ async function graficasReporte(desde,hasta){
   const tolF=S.cat.flujos.variacion, tol=tolF*100, out={};
   const avg=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:NaN;
   const orden=(a,b)=>a.localeCompare(b,'es',{numeric:true});
-  const lim=(n,v)=>({type:'line',label:n,data:Array(v).fill(0),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.5});
-  const optPct={plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#eceee9'}},x:{grid:{display:false}}}};
+  const optPct=()=>conLimites({plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#eceee9'}},x:{grid:{display:false}}}},
+    limitesPct(tol),{suggestedMin:-(tol+1),suggestedMax:tol+1});
   const pal=['#3f8f3a','#1f5f8b','#b7791f','#7a4fa0','#c0392b','#2a9d8f','#5b6470','#d4a017','#8d6e63','#00838f'];
   // 1) variación por boquilla, última calibración
   const key=r=>r.iso+'|'+String(r.descarga).replace(/\D/g,'').padStart(4,'0');
   const ult={}; regs.forEach(r=>{ if(!ult[r.dron]||key(r)>=key(ult[r.dron])) ult[r.dron]=r; });
   const last=Object.values(ult).sort((a,b)=>orden(a.dron,b.dron));
   if(last.length){
-    const l1=lim(`+${tol}%`,last.length), l2=lim(`−${tol}%`,last.length); l1.data=l1.data.map(()=>tol); l2.data=l2.data.map(()=>-tol);
     out.boquillas=pngGrafica({type:'bar',data:{labels:last.map(r=>r.dron),datasets:[
       {label:'Boquilla 1',data:last.map(r=>+(r.varB1*100).toFixed(2)),backgroundColor:'#3f8f3a',borderRadius:4},
-      {label:'Boquilla 2',data:last.map(r=>+(r.varB2*100).toFixed(2)),backgroundColor:'#9bc89a',borderRadius:4},l1,l2]},options:optPct},
+      {label:'Boquilla 2',data:last.map(r=>+(r.varB2*100).toFixed(2)),backgroundColor:'#9bc89a',borderRadius:4}]},options:optPct()},
       'Variación por boquilla — última calibración (%)');
   }
   // 2) variación general en el tiempo
@@ -1088,25 +1087,22 @@ async function graficasReporte(desde,hasta){
   if(fechas.length){
     out.tiempo=pngGrafica({type:'line',data:{labels:fechas.map(x=>x.slice(8,10)+'/'+x.slice(5,7)),datasets:dr.map((d,i)=>({
       label:d,borderColor:pal[i%pal.length],backgroundColor:pal[i%pal.length],tension:.25,spanGaps:true,pointRadius:4,
-      data:fechas.map(fe=>{const rr=regs.filter(r=>r.dron===d&&r.iso===fe&&r.varGeneral!=null); return rr.length?+(avg(rr.map(r=>r.varGeneral))*100).toFixed(2):null;})}))},options:optPct},
+      data:fechas.map(fe=>{const rr=regs.filter(r=>r.dron===d&&r.iso===fe&&r.varGeneral!=null); return rr.length?+(avg(rr.map(r=>r.varGeneral))*100).toFixed(2):null;})}))},options:optPct()},
       'Variación general en el tiempo (%)');
   }
   // 3) L/ha real vs teórico
   const dv=[...new Set(vs.map(v=>v.dron))].sort(orden);
   if(dv.length){
     const pr=(d,k)=>{const a=vs.filter(v=>v.dron===d&&v[k]!=null).map(v=>v[k]); return a.length?+avg(a).toFixed(2):null;};
-    out.lha=pngGrafica({type:'bar',data:{labels:dv,datasets:[
-      {label:'L/ha real',data:dv.map(d=>pr(d,'lhaReal')),backgroundColor:dv.map(d=>Math.abs(avg(vs.filter(v=>v.dron===d&&v.variacion!=null).map(v=>v.variacion)))<=tolF?'#3f8f3a':'#c0392b'),borderRadius:4},
-      {type:'line',label:'L/ha teórico',data:dv.map(d=>pr(d,'lhaTeorico')),borderColor:'#141618',borderDash:[5,4],pointRadius:4,pointBackgroundColor:'#141618',borderWidth:1.5}]},
-      options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{beginAtZero:false,min:Math.floor((Math.min(...dv.map(d=>Math.min(pr(d,'lhaReal')??99,pr(d,'lhaTeorico')??99)))-0.2)*10)/10,grid:{color:'#eceee9'},title:{display:true,text:'L/ha'}},x:{grid:{display:false}}}}},
-      'L/ha real vs teórico — promedio por dron');
+    const cfg=configLha(dv,pr,dv.map(d=>Math.abs(avg(vs.filter(v=>v.dron===d&&v.variacion!=null).map(v=>v.variacion)))<=tolF?'#3f8f3a':'#c0392b'),tolF,
+      {plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}});
+    out.lha=pngGrafica({type:'bar',data:{labels:dv,datasets:cfg.datasets},options:cfg.options},'L/ha real vs teórico — promedio por dron');
   }
   // 4) variación L/ha por vuelo
   if(vs.length){
     const o=vs.slice().sort((a,b)=>a.iso<b.iso?-1:a.iso>b.iso?1:a.fila-b.fila);
-    const l1=lim(`+${tol}%`,o.length), l2=lim(`−${tol}%`,o.length); l1.data=l1.data.map(()=>tol); l2.data=l2.data.map(()=>-tol);
     out.vuelos=pngGrafica({type:'bar',data:{labels:o.map(v=>v.dron+' '+v.fecha.slice(0,5)),datasets:[
-      {label:'% Var L/ha',data:o.map(v=>v.variacion==null?null:+(v.variacion*100).toFixed(2)),backgroundColor:o.map(v=>v.variacion!=null&&Math.abs(v.variacion)<=tolF?'#3f8f3a':'#c0392b'),borderRadius:3},l1,l2]},options:optPct},
+      {label:'% Var L/ha',data:o.map(v=>v.variacion==null?null:+(v.variacion*100).toFixed(2)),backgroundColor:o.map(v=>v.variacion!=null&&Math.abs(v.variacion)<=tolF?'#3f8f3a':'#c0392b'),borderRadius:3}]},options:optPct()},
       'Variación L/ha por vuelo (%)');
   }
   return out;
@@ -1184,10 +1180,8 @@ function pintarDash(){
   const tol=S.cat.flujos.variacion*100;
   dibujar('ch1',{type:'bar',data:{labels:last.map(r=>r.dron),datasets:[
     {label:'Boquilla 1',data:last.map(r=>+(r.varB1*100).toFixed(2)),backgroundColor:'#3f8f3a',borderRadius:4},
-    {label:'Boquilla 2',data:last.map(r=>+(r.varB2*100).toFixed(2)),backgroundColor:'#9bc89a',borderRadius:4},
-    {type:'line',label:`+${tol}%`,data:last.map(()=>tol),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.5},
-    {type:'line',label:`−${tol}%`,data:last.map(()=>-tol),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.5}
-  ]},options:opcionesPct()});
+    {label:'Boquilla 2',data:last.map(r=>+(r.varB2*100).toFixed(2)),backgroundColor:'#9bc89a',borderRadius:4}
+  ]},options:conLimites(opcionesPct(),limitesPct(tol),{suggestedMin:-(tol+1),suggestedMax:tol+1})});
 
   // gráfica 2: variación general en el tiempo por dron
   const fechas=[...new Set(rows.map(r=>r.iso))].sort();
@@ -1196,7 +1190,7 @@ function pintarDash(){
   dibujar('ch2',{type:'line',data:{labels:fechas.map(x=>x.slice(8,10)+'/'+x.slice(5,7)),datasets:drones.map((d,i)=>({
     label:d, borderColor:pal[i], backgroundColor:pal[i], tension:.25, spanGaps:true, pointRadius:3,
     data:fechas.map(fe=>{ const rr=rows.filter(r=>r.dron===d&&r.iso===fe&&r.varGeneral!=null); return rr.length? +(rr.reduce((s,r)=>s+r.varGeneral,0)/rr.length*100).toFixed(2):null; })
-  }))},options:opcionesPct()});
+  }))},options:conLimites(opcionesPct(),limitesPct(tol),{suggestedMin:-(tol+1),suggestedMax:tol+1})});
 
   $('dTabla').innerHTML = rows.length ? rows.slice().sort((a,b)=>key(b).localeCompare(key(a))).map(r=>`<tr>
     <td>${esc(r.fecha)}</td><td>${esc(r.descarga)}</td><td><b>${esc(r.dron)}</b></td><td>${esc(r.labor)}</td><td>${esc(r.supervisor)}</td>
@@ -1217,16 +1211,13 @@ function pintarVuelosDash(de,ha,dr){
   $('kvVar').textContent=vv.length?pct(avg(vv)):'—'; $('kvQ').textContent=vq.length?pct(avg(vq)):'—';
   const drones=[...new Set(vs.map(v=>v.dron))].sort((a,b)=>a.localeCompare(b,'es',{numeric:true}));
   const pr=(d,k)=>{ const a=vs.filter(v=>v.dron===d&&v[k]!=null).map(v=>v[k]); return a.length? +avg(a).toFixed(2):null; };
-  dibujar('ch3',{type:'bar',data:{labels:drones,datasets:[
-    {label:'L/ha real',data:drones.map(d=>pr(d,'lhaReal')),backgroundColor:drones.map(d=>{ const a=vs.filter(v=>v.dron===d&&v.variacion!=null).map(v=>v.variacion); return Math.abs(avg(a))<=tol?'#3f8f3a':'#c0392b'; }),borderRadius:4},
-    {type:'line',label:'L/ha teórico',data:drones.map(d=>pr(d,'lhaTeorico')),borderColor:'#141618',borderDash:[5,4],pointRadius:3,pointBackgroundColor:'#141618',borderWidth:1.5}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':c.parsed.y.toFixed(2)} L/ha`}}},scales:{y:{beginAtZero:false,min:drones.length?Math.floor((Math.min(...drones.map(d=>Math.min(pr(d,'lhaReal')??99,pr(d,'lhaTeorico')??99)))-0.2)*10)/10:undefined,grid:{color:'#eceee9'},title:{display:true,text:'L/ha'}},x:{grid:{display:false}}}}});
+  { const cfg=configLha(drones,pr,drones.map(d=>{ const a=vs.filter(v=>v.dron===d&&v.variacion!=null).map(v=>v.variacion); return Math.abs(avg(a))<=tol?'#3f8f3a':'#c0392b'; }),tol,
+      {responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}});
+    dibujar('ch3',{type:'bar',data:{labels:drones,datasets:cfg.datasets},options:cfg.options}); }
   const orden=vs.slice().sort((a,b)=>a.iso<b.iso?-1:a.iso>b.iso?1:a.fila-b.fila);
   dibujar('ch4',{type:'bar',data:{labels:orden.map(v=>v.dron+' '+v.fecha.slice(0,5)),datasets:[
-    {label:'% Var L/ha',data:orden.map(v=>v.variacion==null?null:+(v.variacion*100).toFixed(2)),backgroundColor:orden.map(v=>v.variacion!=null&&Math.abs(v.variacion)<=tol?'#3f8f3a':'#c0392b'),borderRadius:3},
-    {type:'line',label:`+${(tol*100).toFixed(0)}%`,data:orden.map(()=>tol*100),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.2},
-    {type:'line',label:`−${(tol*100).toFixed(0)}%`,data:orden.map(()=>-tol*100),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.2}
-  ]},options:opcionesPct()});
+    {label:'% Var L/ha',data:orden.map(v=>v.variacion==null?null:+(v.variacion*100).toFixed(2)),backgroundColor:orden.map(v=>v.variacion!=null&&Math.abs(v.variacion)<=tol?'#3f8f3a':'#c0392b'),borderRadius:3}
+  ]},options:conLimites(opcionesPct(),limitesPct(tol*100),{suggestedMin:-(tol*100+1),suggestedMax:tol*100+1})});
   const cl=x=>x==null?'':(Math.abs(x)<=tol?'v-ok':'v-bad');
   $('dvTabla').innerHTML = vs.length ? vs.slice().sort((a,b)=>a.iso<b.iso?1:a.iso>b.iso?-1:b.fila-a.fila).map(v=>`<tr>
     <td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${esc(v.calibracion)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td>
@@ -1325,6 +1316,51 @@ $('fEditar').addEventListener('submit',async ev=>{
   }catch(e){ toast(e.message,1) }
   b.disabled=false; b.textContent='Guardar cambios';
 });
+
+/* Líneas de límite permitido (±5%) de lado a lado de la gráfica, con etiqueta */
+const pluginLimites={id:'limites',afterDatasetsDraw(c,_a,o){
+  const ls=(o&&o.lineas)||[]; if(!ls.length||!c.scales.y) return;
+  const ctx=c.ctx, a=c.chartArea; ctx.save();
+  ls.forEach(l=>{
+    const y=c.scales.y.getPixelForValue(l.y); if(y<a.top-1||y>a.bottom+1) return;
+    ctx.strokeStyle=l.color||'#c0392b'; ctx.lineWidth=l.ancho||1.6; ctx.setLineDash(l.solida?[]:[7,4]);
+    ctx.beginPath(); ctx.moveTo(a.left,y); ctx.lineTo(a.right,y); ctx.stroke();
+    if(l.label){ ctx.setLineDash([]); ctx.font="600 11px Barlow, Arial, sans-serif";
+      const w=ctx.measureText(l.label).width, x=a.right-6, ty=l.abajo?y+3:y-16;
+      ctx.fillStyle='rgba(255,255,255,.9)'; ctx.fillRect(x-w-5,ty,w+8,14);
+      ctx.fillStyle=l.color||'#c0392b'; ctx.textAlign='right'; ctx.textBaseline='top'; ctx.fillText(l.label,x,ty+1); }
+  });
+  ctx.restore();
+}};
+if(window.Chart) Chart.register(pluginLimites);
+function limitesPct(t){ t=+(+t).toFixed(2); return [{y:t,label:`+${t}% permitido`},{y:-t,label:`−${t}% permitido`,abajo:true}]; }
+function conLimites(opts,lineas,rangoY){
+  opts.plugins=Object.assign({},opts.plugins||{},{limites:{lineas}});
+  if(rangoY){ opts.scales=Object.assign({},opts.scales||{}); opts.scales.y=Object.assign({},opts.scales.y||{},rangoY); }
+  return opts;
+}
+/* L/ha real vs teórico con banda ±tol: datasets + opciones */
+function configLha(drones,pr,colores,tolF,base){
+  const teo=drones.map(d=>pr(d,'lhaTeorico')), reales=drones.map(d=>pr(d,'lhaReal'));
+  const unicos=[...new Set(teo.filter(x=>x!=null))];
+  const ds=[{label:'L/ha real',data:reales,backgroundColor:colores,borderRadius:4}];
+  let lineas=[];
+  if(unicos.length===1){
+    const T=unicos[0];
+    lineas=[{y:T*(1+tolF),label:`+${+(tolF*100).toFixed(2)}% permitido (${f(T*(1+tolF),2)})`},
+            {y:T,label:`Teórico ${f(T,2)} L/ha`,color:'#141618',ancho:1.4},
+            {y:T*(1-tolF),label:`−${+(tolF*100).toFixed(2)}% permitido (${f(T*(1-tolF),2)})`,abajo:true}];
+  } else {
+    ds.push({type:'line',label:'L/ha teórico',data:teo,borderColor:'#141618',borderDash:[5,4],pointRadius:3,pointBackgroundColor:'#141618',borderWidth:1.5});
+    ds.push({type:'line',label:`+${+(tolF*100).toFixed(2)}% permitido`,data:teo.map(x=>x==null?null:+(x*(1+tolF)).toFixed(2)),borderColor:'#c0392b',borderDash:[6,4],pointRadius:0,borderWidth:1.4});
+    ds.push({type:'line',label:`−${+(tolF*100).toFixed(2)}% permitido`,data:teo.map(x=>x==null?null:+(x*(1-tolF)).toFixed(2)),borderColor:'#c0392b',borderDash:[6,4],pointRadius:0,borderWidth:1.4});
+  }
+  const vals=reales.concat(teo.map(x=>x==null?null:x*(1-tolF)),teo.map(x=>x==null?null:x*(1+tolF))).filter(x=>x!=null);
+  const opts=Object.assign({},base,{plugins:Object.assign({},base.plugins||{},{tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':c.parsed.y.toFixed(2)} L/ha`}}})});
+  const paso=0.2, mn=vals.length?Math.floor((Math.min(...vals)-0.1)/paso)*paso:undefined, mx=vals.length?Math.ceil((Math.max(...vals)+0.1)/paso)*paso:undefined;
+  opts.scales={y:{beginAtZero:false,min:mn==null?undefined:+mn.toFixed(1),max:mx==null?undefined:+mx.toFixed(1),ticks:{stepSize:paso,callback:v=>(+v).toFixed(1)},grid:{color:'#eceee9'},title:{display:true,text:'L/ha'}},x:{grid:{display:false}}};
+  return {datasets:ds,options:conLimites(opts,lineas)};
+}
 
 function opcionesPct(){
   return {responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
