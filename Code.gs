@@ -815,8 +815,56 @@ function analizar_(desde, hasta) {
   })) };
   const listaVuelos = vue.slice().sort((x, y) => x.iso < y.iso ? -1 : x.iso > y.iso ? 1 : (x.fila || 0) - (y.fila || 0))
     .map(v => ({ dron: v.dron, fecha: v.fecha, variacion: v.variacion, lhaReal: v.lhaReal, lhaTeorico: v.lhaTeorico }));
+
+  // ---- Estabilidad por boquilla: coeficiente de variación (CV %) de la descarga relativa al teórico
+  const sd_ = arr => { if (arr.length < 2) return NaN; const m = prom_(arr); return Math.sqrt(arr.reduce((s2, x) => s2 + (x - m) * (x - m), 0) / (arr.length - 1)); };
+  const estab = nomCal.map(dr => {
+    const rs = cal.filter(r => r.dron === dr && r.caudalBoq > 0);
+    const fila = { dron: dr, n: rs.length };
+    [['b1', 'varB1'], ['b2', 'varB2']].forEach(([b, vk]) => {
+      const rel = rs.map(r => r[b] / r.caudalBoq);
+      const m = prom_(rel), cv = sd_(rel) / m;
+      const vs = rs.map(r => r[vk]).filter(x => x != null);
+      fila[b] = { cv: cv, min: vs.length ? Math.min.apply(null, vs) : NaN, max: vs.length ? Math.max.apply(null, vs) : NaN,
+        nivel: rs.length < 3 || isNaN(cv) ? 'Pocas calibraciones' : cv <= 0.03 ? 'Estable' : cv <= 0.05 ? 'Vigilar' : 'Revisar' };
+    });
+    return fila;
+  });
+  estab.forEach(e => [['b1', 'Boquilla 1'], ['b2', 'Boquilla 2']].forEach(([b, nom]) => {
+    if (e[b].nivel === 'Revisar') hall.push('<b>' + h_(e.dron) + '</b>: la ' + nom + ' es inestable (CV ' + pa_(e[b].cv, 1) + ', variación de ' + p_(e[b].min, 1) + ' a ' + p_(e[b].max, 1) + '): revisar desgaste, obstrucción o presión.');
+  }));
+
+  // ---- Relación calibración → vuelo
+  const calOrd = cal.slice().sort((x, y) => clave(x) < clave(y) ? -1 : 1);
+  const relacion = vue.slice().sort((x, y) => x.iso < y.iso ? -1 : x.iso > y.iso ? 1 : (x.fila || 0) - (y.fila || 0)).map(v => {
+    const mismos = calOrd.filter(r => r.dron === v.dron && r.iso === v.iso);
+    let ref = v.calibracion ? mismos.find(r => String(r.descarga) === String(v.calibracion)) : null;
+    if (!ref && mismos.length) ref = mismos[mismos.length - 1];
+    if (!ref) { const prev = calOrd.filter(r => r.dron === v.dron && r.iso < v.iso); ref = prev.length ? prev[prev.length - 1] : null; }
+    const calOk = ref ? /DENTRO/i.test(ref.estado) : null;
+    const vueOk = v.variacion != null ? Math.abs(v.variacion) <= tol : null;
+    let diag, color;
+    if (!ref) { diag = 'Sin calibración de referencia'; color = GRIS; }
+    else if (vueOk == null) { diag = 'Vuelo sin datos suficientes'; color = GRIS; }
+    else if (calOk && vueOk) { diag = 'Correcto: quedó bien en vuelo'; color = VERDE; }
+    else if (calOk && !vueOk) { diag = 'Calibrado bien pero aplicó fuera: revisar velocidad, ancho de faja o configuración del vuelo'; color = AMBAR; }
+    else if (!calOk && vueOk) { diag = 'Aplicó bien aunque la calibración quedó fuera: confirmar la calibración'; color = AMBAR; }
+    else { diag = 'Calibración y vuelo fuera de rango: recalibrar boquillas'; color = ROJO; }
+    return { fecha: v.fecha, dron: v.dron, calRef: ref ? ref.descarga + (ref.iso !== v.iso ? ' (' + ref.fecha.slice(0, 5) + ')' : '') : '—',
+      calEstado: ref ? (calOk ? 'OK' : 'FUERA') : '—', calVar: ref ? ref.varGeneral : null, vueVar: v.variacion, vueOk: vueOk, calOk: calOk, diag: diag, color: color };
+  });
+  const relOk = relacion.filter(r => r.calOk && r.vueOk).length, relOper = relacion.filter(r => r.calOk && r.vueOk === false).length;
+  if (relacion.length) {
+    hall.push('Calibración vs vuelo: <b>' + relOk + ' de ' + relacion.length + '</b> vuelos quedaron bien después de una calibración correcta.');
+    if (relOper) hall.push('<b>' + relOper + '</b> vuelo(s) aplicaron fuera de rango aunque la calibración estaba bien: el problema apunta a la operación (velocidad, ancho de faja o configuración), no a las boquillas.');
+  }
+
+  // ---- Fotos tomadas en el período
+  const fotos = calOrd.filter(r => /^https?:/.test(r.foto)).map(r => ({ url: r.foto, dron: r.dron, fecha: r.fecha, descarga: r.descarga, estado: r.estado, varGeneral: r.varGeneral }));
+
   return { desde: desde, hasta: hasta, tol: tol, total: tot, dentro: totDentro, drones: drones, hallazgos: hall, recomendaciones: rec, vuelos: vue.length,
-    observaciones: obs, resumenVuelos: resumenVuelos, serieTiempo: serieTiempo, listaVuelos: listaVuelos };
+    observaciones: obs, resumenVuelos: resumenVuelos, serieTiempo: serieTiempo, listaVuelos: listaVuelos,
+    estabilidad: estab, relacion: relacion, fotos: fotos };
 }
 
 const VERDE = '#2e7d32', VERDE_OSC = '#1b5e20', VERDE_CLARO = '#eaf4ea', GRIS = '#5f6b73', ROJO = '#c0392b', AMBAR = '#b7791f';
@@ -825,8 +873,8 @@ const LOGO_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAFMAAABuCAYAAABbVi9zAAAfeElEQVR42u19aX
 function logoBlob_() { return Utilities.newBlob(Utilities.base64Decode(LOGO_B64), 'image/png', 'logo.png'); }
 
 /** HTML del reporte. modo 'correo' usa cid:logo; 'web' incrusta el logo. */
-function htmlReporte_(a, u, modo, g) {
-  g = g || {};
+function htmlReporte_(a, u, modo, g, fotos) {
+  g = g || {}; fotos = fotos || [];
   const logo = modo === 'correo' ? 'cid:logo' : 'data:image/png;base64,' + LOGO_B64;
   const img = k => !g[k] ? '' : '<div style="margin:10px 0 4px;border:1px solid #e3ebe3;border-radius:8px;padding:6px;background:#fff"><img src="' +
     (modo === 'correo' ? 'cid:g_' + k : 'data:image/png;base64,' + Utilities.base64Encode(g[k].getBytes())) + '" alt="" style="width:100%;max-width:880px;display:block"></div>';
@@ -873,6 +921,16 @@ function htmlReporte_(a, u, modo, g) {
     ['Dron', 'Estado', 'Calib.', '% dentro de rango', 'Var. prom. B1', 'Var. prom. B2', '|Var. gral.| prom.', 'Var. máx.', 'Desbalance B1–B2', 'Fuera B1 / B2', 'Tendencia', 'Última calibración'].map(x => '<th ' + th + '>' + x + '</th>').join('') +
     '</tr>' + (filas || '<tr><td ' + td + ' colspan="12">Sin datos</td></tr>') + '</table></div>' +
     (g.boquillas || g.tiempo ? h3('Gráficas de calibración') + img('boquillas') + img('tiempo') : '') +
+    ((a.estabilidad || []).length ? h3('Estabilidad por boquilla (CV %)') +
+      '<p style="font-size:12px;color:' + GRIS + ';margin:0 0 8px">El coeficiente de variación mide qué tan pareja es la descarga de cada boquilla entre calibraciones: ' +
+      '<b style="color:' + VERDE + '">≤ 3 % Estable</b> · <b style="color:' + AMBAR + '">3–5 % Vigilar</b> · <b style="color:' + ROJO + '">&gt; 5 % Revisar</b> (desgaste, obstrucción o presión irregular).</p>' +
+      '<table style="border-collapse:collapse;width:100%"><tr>' + ['Dron', 'Calib.', 'CV Boquilla 1', 'Rango B1', 'CV Boquilla 2', 'Rango B2'].map(x => '<th ' + th + '>' + x + '</th>').join('') + '</tr>' +
+      a.estabilidad.map((e, i) => {
+        const c = b => { const col = { 'Estable': VERDE, 'Vigilar': AMBAR, 'Revisar': ROJO }[e[b].nivel] || GRIS;
+          return '<td ' + td + '><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + col + ';margin-right:6px;vertical-align:middle"></span><b style="color:' + col + '">' + (isNaN(e[b].cv) ? '—' : pa_(e[b].cv, 1)) + '</b> <span style="color:' + GRIS + '">' + e[b].nivel + '</span></td>'; };
+        return '<tr style="background:' + (i % 2 ? '#f7faf6' : '#fff') + '"><td ' + td + '><b>' + h_(e.dron) + '</b></td><td ' + td + '>' + e.n + '</td>' +
+          c('b1') + '<td ' + td + '>' + p_(e.b1.min, 1) + ' a ' + p_(e.b1.max, 1) + '</td>' + c('b2') + '<td ' + td + '>' + p_(e.b2.min, 1) + ' a ' + p_(e.b2.max, 1) + '</td></tr>';
+      }).join('') + '</table>' : '') +
     (a.resumenVuelos && a.resumenVuelos.n ? h3('Comportamiento del vuelo') + '<table style="width:100%;border-collapse:collapse"><tr>' +
       kpi('Vuelos', a.resumenVuelos.n, a.resumenVuelos.drones + ' drones', VERDE_OSC) +
       kpi('Dentro de rango L/ha', isNaN(a.resumenVuelos.pct) ? '—' : pa_(a.resumenVuelos.pct, 0), a.resumenVuelos.dentro + ' de ' + a.resumenVuelos.n + ' dentro de ±' + (a.tol * 100).toFixed(0) + '%', a.resumenVuelos.pct >= 0.8 ? VERDE : a.resumenVuelos.pct >= 0.5 ? AMBAR : ROJO) +
@@ -881,7 +939,22 @@ function htmlReporte_(a, u, modo, g) {
       '</tr></table>' + img('lha') + img('vuelos') : '') +
     (conV.length ? h3('Vuelos del drone en el período') + '<table style="border-collapse:collapse;width:100%"><tr>' +
       ['Dron', 'Vuelos', 'Var. L/ha prom.', '|Var. L/ha| prom.', 'Var. caudal prom.', 'Vuelos fuera de rango'].map(x => '<th ' + th + '>' + x + '</th>').join('') + '</tr>' + filasV + '</table>' : '') +
+    ((a.relacion || []).length ? h3('Relación calibración — vuelo') +
+      '<p style="font-size:12px;color:' + GRIS + ';margin:0 0 8px">Referencia para saber si el dron quedó bien durante el vuelo: compara la calibración de ese día con lo que aplicó en vuelo.</p>' +
+      '<table style="border-collapse:collapse;width:100%"><tr>' + ['Fecha', 'Dron', 'Calibración ref.', 'Var. calibración', 'Var. L/ha vuelo', 'Diagnóstico'].map(x => '<th ' + th + '>' + x + '</th>').join('') + '</tr>' +
+      a.relacion.map((r, i) => '<tr style="background:' + (i % 2 ? '#f7faf6' : '#fff') + '"><td ' + td + '>' + r.fecha + '</td><td ' + td + '><b>' + h_(r.dron) + '</b></td>' +
+        '<td ' + td + '>' + h_(r.calRef) + ' · <b style="color:' + (r.calOk ? VERDE : r.calOk === false ? ROJO : GRIS) + '">' + r.calEstado + '</b></td>' +
+        '<td ' + td + '>' + p_(r.calVar) + '</td><td ' + td + '><b style="color:' + (r.vueOk ? VERDE : r.vueOk === false ? ROJO : GRIS) + '">' + p_(r.vueVar) + '</b></td>' +
+        '<td ' + td + '><b style="color:' + r.color + '">' + h_(r.diag) + '</b></td></tr>').join('') + '</table>' : '') +
     (obs ? h3('Observaciones de campo') + '<table style="border-collapse:collapse;width:100%"><tr>' + ['Fecha', 'Dron', 'Registro', 'Observación'].map(x => '<th ' + th + '>' + x + '</th>').join('') + '</tr>' + obs + '</table>' : '') +
+    (fotos.length ? h3('Fotos de calibración (' + fotos.length + (a.fotos.length > fotos.length ? ' de ' + a.fotos.length : '') + ')') +
+      '<table style="border-collapse:collapse;width:100%"><tr>' + fotos.map((f, i) => {
+        const src = modo === 'correo' ? (f.mini ? 'cid:foto_' + i : '') : (f.mini ? 'data:' + ((f.mini.getContentType && f.mini.getContentType()) || 'image/png') + ';base64,' + Utilities.base64Encode(f.mini.getBytes()) : '');
+        const ok = /DENTRO/i.test(f.estado);
+        return (i && i % 4 === 0 ? '</tr><tr>' : '') + '<td style="width:25%;padding:6px;vertical-align:top"><a href="' + h_(f.url) + '" style="text-decoration:none;color:#1b1e21">' +
+          (src ? '<img src="' + src + '" alt="" style="width:100%;max-width:200px;border-radius:6px;display:block;border:1px solid #dfe2dc">' : '<div style="padding:30px 6px;border:1px dashed #cfdccf;border-radius:6px;text-align:center;font-size:11px;color:' + VERDE + '">Ver foto</div>') +
+          '<div style="font-size:11px;margin-top:4px"><b>' + h_(f.dron) + '</b> · ' + f.fecha + ' · ' + h_(f.descarga) + ' · <b style="color:' + (ok ? VERDE : ROJO) + '">' + (ok ? 'OK' : 'FUERA') + '</b></div></a></td>';
+      }).join('') + '</tr></table>' : '') +
     '<p style="font-size:11px;color:' + GRIS + ';margin:16px 0 0;line-height:1.5"><b style="color:' + VERDE + '">Cómo leerlo:</b> la variación compara la descarga de cada boquilla con el caudal teórico por boquilla (L/ha × velocidad × ancho × 60 ÷ 10 000 ÷ 2). ' +
     'Desbalance = |B1 − B2| ÷ caudal por boquilla. Tendencia compara la primera y la segunda mitad del período. ' +
     'Estado: <b style="color:' + VERDE + '">Bueno</b> = 80% o más dentro de rango y última calibración OK; <b style="color:' + ROJO + '">Crítico</b> = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; <b style="color:' + AMBAR + '">Atención</b> = el resto.</p>' +
@@ -1031,8 +1104,8 @@ function kpisDoc_(body, kp) {
   return kt;
 }
 
-function pdfReporte_(a, u, nombre, g) {
-  g = g || {};
+function pdfReporte_(a, u, nombre, g, fotos) {
+  g = g || {}; fotos = fotos || [];
   const doc = DocumentApp.create(nombre.replace(/\.pdf$/, ''));
   const id = doc.getId();
   try {
@@ -1093,6 +1166,20 @@ function pdfReporte_(a, u, nombre, g) {
       imagenDoc_(body, g.tiempo);
     }
 
+    if ((a.estabilidad || []).length) {
+      tituloDoc_(body, 'Estabilidad por boquilla (CV %)');
+      const ex = body.appendParagraph('Coeficiente de variación de la descarga de cada boquilla entre calibraciones: ≤ 3 % Estable · 3–5 % Vigilar · > 5 % Revisar (desgaste, obstrucción o presión irregular).');
+      ex.editAsText().setFontSize(9).setBold(false).setForegroundColor(GRIS).setFontFamily('Arial');
+      const tE = tablaDoc_(body, ['Dron', 'Calib.', 'CV Boquilla 1', 'Estado B1', 'Rango B1', 'CV Boquilla 2', 'Estado B2', 'Rango B2'],
+        a.estabilidad.map(e => [e.dron, String(e.n), isNaN(e.b1.cv) ? '—' : pa_(e.b1.cv, 1), e.b1.nivel, p_(e.b1.min, 1) + ' a ' + p_(e.b1.max, 1),
+                                isNaN(e.b2.cv) ? '—' : pa_(e.b2.cv, 1), e.b2.nivel, p_(e.b2.min, 1) + ' a ' + p_(e.b2.max, 1)]));
+      const colN = n => ({ 'Estable': VERDE, 'Vigilar': AMBAR, 'Revisar': ROJO }[n] || GRIS);
+      a.estabilidad.forEach((e, i) => {
+        const r = tE.getRow(i + 1); r.getCell(0).editAsText().setBold(true);
+        [[2, 3, e.b1.nivel], [5, 6, e.b2.nivel]].forEach(([c1, c2, n]) => { r.getCell(c1).editAsText().setBold(true).setForegroundColor(colN(n)); r.getCell(c2).editAsText().setBold(true).setForegroundColor(colN(n)); });
+      });
+    }
+
     const rv = a.resumenVuelos;
     if (rv && rv.n) {
       tituloDoc_(body, 'Comportamiento del vuelo');
@@ -1113,9 +1200,47 @@ function pdfReporte_(a, u, nombre, g) {
       conV.forEach((d, i) => { const r = tV.getRow(i + 1); r.getCell(0).editAsText().setBold(true); r.getCell(2).editAsText().setBold(true).setForegroundColor(Math.abs(d.vueloVar) > a.tol ? ROJO : VERDE); });
     }
 
+    if ((a.relacion || []).length) {
+      tituloDoc_(body, 'Relación calibración — vuelo');
+      const ex = body.appendParagraph('Referencia para saber si el dron quedó bien durante el vuelo: compara la calibración de ese día con lo que aplicó en vuelo.');
+      ex.editAsText().setFontSize(9).setBold(false).setForegroundColor(GRIS).setFontFamily('Arial');
+      const tR = tablaDoc_(body, ['Fecha', 'Dron', 'Calibración ref.', 'Var. calibración', 'Var. L/ha vuelo', 'Diagnóstico'],
+        a.relacion.map(r => [r.fecha, r.dron, r.calRef + ' · ' + r.calEstado, p_(r.calVar), p_(r.vueVar), r.diag]), [62, 50, 90, 70, 70, 0]);
+      a.relacion.forEach((r, i) => {
+        const row = tR.getRow(i + 1); row.getCell(1).editAsText().setBold(true);
+        row.getCell(2).editAsText().setForegroundColor(r.calOk ? VERDE : r.calOk === false ? ROJO : GRIS);
+        row.getCell(4).editAsText().setBold(true).setForegroundColor(r.vueOk ? VERDE : r.vueOk === false ? ROJO : GRIS);
+        row.getCell(5).editAsText().setBold(true).setForegroundColor(r.color);
+      });
+    }
+
     if ((a.observaciones || []).length) {
       tituloDoc_(body, 'Observaciones de campo');
       tablaDoc_(body, ['Fecha', 'Dron', 'Registro', 'Observación'], a.observaciones.map(o => [o.fecha, o.dron, o.tipo + ' ' + o.ref, o.texto]), [62, 56, 86, 0]);
+    }
+
+    if (fotos.length) {
+      tituloDoc_(body, 'Fotos de calibración (' + fotos.length + (a.fotos.length > fotos.length ? ' de ' + a.fotos.length : '') + ')');
+      const filasF = [];
+      for (let i = 0; i < fotos.length; i += 3) filasF.push(['', '', '']);
+      const tF = body.appendTable(filasF);
+      tF.setBorderColor('#ffffff').setBorderWidth(4);
+      fotos.forEach((f, i) => {
+        const cell = tF.getRow(Math.floor(i / 3)).getCell(i % 3);
+        cell.setPaddingTop(4).setPaddingBottom(6).setPaddingLeft(4).setPaddingRight(4);
+        const par = cell.getChild(0).asParagraph();
+        try {
+          const im = par.appendInlineImage(f.blob);
+          const k = 220 / im.getWidth(); im.setWidth(220).setHeight(Math.round(im.getHeight() * k));
+          if (im.getHeight() > 220) { const k2 = 220 / im.getHeight(); im.setHeight(220).setWidth(Math.round(im.getWidth() * k2)); }
+        } catch (e) { par.setText('(foto no disponible)'); }
+        const ok = /DENTRO/i.test(f.estado);
+        const cap = cell.appendParagraph(f.dron + ' · ' + f.fecha + ' · ' + f.descarga + ' · ' + (ok ? 'OK' : 'FUERA'));
+        cap.editAsText().setFontSize(8).setBold(false).setForegroundColor('#1b1e21').setFontFamily('Arial');
+        cap.editAsText().setBold(0, String(f.dron).length - 1, true);
+        const t = cap.getText(); cap.editAsText().setForegroundColor(t.length - (ok ? 2 : 5), t.length - 1, ok ? VERDE : ROJO).setBold(t.length - (ok ? 2 : 5), t.length - 1, true);
+        cap.setLinkUrl(f.url);
+      });
     }
 
     const nota = body.appendParagraph('Cómo leerlo: la variación compara la descarga de cada boquilla con el caudal teórico por boquilla (L/ha × velocidad × ancho × 60 ÷ 10 000 ÷ 2). Desbalance = |B1 − B2| ÷ caudal por boquilla. Tendencia compara la primera y la segunda mitad del período. Estado: Bueno = 80% o más dentro de rango y última calibración OK; Crítico = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; Atención = el resto.');
@@ -1129,9 +1254,27 @@ function pdfReporte_(a, u, nombre, g) {
   }
 }
 
-function imagenesCorreo_(g) {
+const MAX_FOTOS = 30;
+function idDrive_(url) { const m = String(url).match(/\/d\/([\w-]{20,})/) || String(url).match(/[?&]id=([\w-]{20,})/); return m ? m[1] : ''; }
+
+/** Descarga las fotos del período (máx. MAX_FOTOS): imagen completa para el PDF y miniatura para el correo. */
+function fotosReporte_(a) {
+  const out = [];
+  (a.fotos || []).slice(-MAX_FOTOS).forEach(f => {
+    const id = idDrive_(f.url); if (!id) return;
+    try {
+      const file = DriveApp.getFileById(id);
+      let mini = null; try { mini = file.getThumbnail(); } catch (e) {}
+      out.push(Object.assign({}, f, { blob: file.getBlob(), mini: mini }));
+    } catch (e) {}
+  });
+  return out;
+}
+
+function imagenesCorreo_(g, fotos) {
   const im = { logo: logoBlob_() };
   ['boquillas', 'tiempo', 'lha', 'vuelos'].forEach(k => { if (g[k]) im['g_' + k] = g[k]; });
+  (fotos || []).forEach((f, i) => { if (f.mini) im['foto_' + i] = f.mini; });
   return im;
 }
 
@@ -1152,23 +1295,24 @@ function generarReporte_(u, desde, hasta, enviar, graficasApp) {
   const a = analizar_(desde, hasta);
   let g = graficasDeApp_(graficasApp);
   if (!Object.keys(g).length) g = graficas_(a);
-  const html = htmlReporte_(a, u, 'web', g);
+  let fotos = []; try { fotos = fotosReporte_(a); } catch (e) {}
+  const html = htmlReporte_(a, u, 'web', g, fotos);
   let enviadoA = '', avisoPdf = '';
   if (enviar) {
     if (!u.correo) return { ok: false, error: 'Su usuario no tiene CORREO ELECTRONICO en la pestaña USUARIOS.' };
     const nombre = 'Reporte_calibracion_' + desde + '_a_' + hasta + '.pdf';
     let pdf;
-    try { pdf = pdfReporte_(a, u, nombre, g); }
+    try { pdf = pdfReporte_(a, u, nombre, g, fotos); }
     catch (err) {
       // Respaldo: si falla el PDF con logo, se envía igual con un PDF sencillo
       avisoPdf = 'PDF con logo no disponible (' + (err && err.message || err) + '); se envió un PDF sencillo.';
-      pdf = Utilities.newBlob('<html><head><meta charset="utf-8"></head><body>' + htmlReporte_(a, u, 'web', g) + '</body></html>', 'text/html', 'r.html').getAs('application/pdf').setName(nombre);
+      pdf = Utilities.newBlob('<html><head><meta charset="utf-8"></head><body>' + htmlReporte_(a, u, 'web', g, fotos) + '</body></html>', 'text/html', 'r.html').getAs('application/pdf').setName(nombre);
     }
     MailApp.sendEmail({
       to: u.correo,
       subject: 'Reporte de calibración de boquillas · ' + dmy_(desde) + ' al ' + dmy_(hasta),
-      htmlBody: htmlReporte_(a, u, 'correo', g),
-      inlineImages: imagenesCorreo_(g),
+      htmlBody: htmlReporte_(a, u, 'correo', g, fotos),
+      inlineImages: imagenesCorreo_(g, fotos),
       attachments: [pdf],
       name: 'Calibración de Boquillas · Ingenio Madre Tierra'
     });
