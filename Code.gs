@@ -89,7 +89,7 @@ function doPost(e) {
       case 'guardar':    return json_(conSesion_(p.token, u => guardar_(u, p.datos)));
       case 'guardarVuelo': return json_(conSesion_(p.token, u => guardarVuelo_(u, p.datos)));
       case 'vuelos':     return json_(conSesion_(p.token, u => ({ ok: true, vuelos: vuelos_(60) })));
-      case 'reporte':    return json_(conSesion_(p.token, u => generarReporte_(u, p.desde, p.hasta, p.enviar !== false)));
+      case 'reporte':    return json_(conSesion_(p.token, u => generarReporte_(u, p.desde, p.hasta, p.enviar !== false, p.graficas)));
       case 'editarCalibracion': return json_(conSesion_(p.token, u => editarCalibracion_(u, p.datos)));
       case 'editarVuelo': return json_(conSesion_(p.token, u => editarVuelo_(u, p.datos)));
       case 'hoy':        return json_(conSesion_(p.token, u => ({ ok: true, registros: registros_(true) })));
@@ -1135,12 +1135,23 @@ function imagenesCorreo_(g) {
   return im;
 }
 
-function generarReporte_(u, desde, hasta, enviar) {
+/** Gráficas que dibuja la app (PNG en base64). Si no vienen, se intenta con Google Sheets. */
+function graficasDeApp_(gc) {
+  const g = {};
+  if (!gc) return g;
+  ['boquillas', 'tiempo', 'lha', 'vuelos'].forEach(k => {
+    if (gc[k]) { try { g[k] = Utilities.newBlob(Utilities.base64Decode(gc[k]), 'image/png', 'grafica_' + k + '.png'); } catch (e) {} }
+  });
+  return g;
+}
+
+function generarReporte_(u, desde, hasta, enviar, graficasApp) {
   if (!u.esAdmin) return { ok: false, error: 'Solo el administrador puede generar reportes.' };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(desde || '') || !/^\d{4}-\d{2}-\d{2}$/.test(hasta || '')) return { ok: false, error: 'Seleccione fecha inicial y final.' };
   if (desde > hasta) return { ok: false, error: 'La fecha inicial es mayor que la final.' };
   const a = analizar_(desde, hasta);
-  const g = graficas_(a);
+  let g = graficasDeApp_(graficasApp);
+  if (!Object.keys(g).length) g = graficas_(a);
   const html = htmlReporte_(a, u, 'web', g);
   let enviadoA = '', avisoPdf = '';
   if (enviar) {

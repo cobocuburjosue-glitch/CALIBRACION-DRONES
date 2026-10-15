@@ -1048,13 +1048,79 @@ async function cargarVuelos(){
 }
 
 /* ================= reportes ================= */
+/* Dibuja en la app las mismas gráficas del Dashboard y las devuelve como PNG (base64) */
+const fondoBlanco={id:'fondoBlanco',beforeDraw:c=>{const x=c.ctx;x.save();x.globalCompositeOperation='destination-over';x.fillStyle='#ffffff';x.fillRect(0,0,c.width,c.height);x.restore();}};
+function pngGrafica(cfg,titulo){
+  const cv=document.createElement('canvas'); cv.width=900; cv.height=360;
+  cv.style.cssText='position:fixed;left:-10000px;top:0;width:900px;height:360px';
+  document.body.appendChild(cv);
+  cfg.options=Object.assign({},cfg.options||{},{responsive:false,maintainAspectRatio:false,animation:false,devicePixelRatio:2});
+  cfg.options.plugins=Object.assign({},cfg.options.plugins||{},{title:{display:true,text:titulo,align:'start',color:'#2e7d32',font:{size:16,weight:'bold'},padding:{bottom:12}}});
+  cfg.plugins=[fondoBlanco];
+  const ch=new Chart(cv,cfg); const d=ch.toBase64Image('image/png',1); ch.destroy(); cv.remove();
+  return d.split(',')[1];
+}
+async function graficasReporte(desde,hasta){
+  if(!window.Chart) return null;
+  const j=await api('dashboard',{}, {timeout:60000});
+  const iso=x=>toISO(x.fecha);
+  const regs=j.registros.filter(r=>{const i=iso(r); return i>=desde&&i<=hasta;}).map(r=>Object.assign(r,{iso:iso(r)}));
+  const vs=(j.vuelos||[]).filter(v=>{const i=iso(v); return i>=desde&&i<=hasta;}).map(v=>Object.assign(v,{iso:iso(v)}));
+  const tolF=S.cat.flujos.variacion, tol=tolF*100, out={};
+  const avg=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:NaN;
+  const orden=(a,b)=>a.localeCompare(b,'es',{numeric:true});
+  const lim=(n,v)=>({type:'line',label:n,data:Array(v).fill(0),borderColor:'#c0392b',borderDash:[5,4],pointRadius:0,borderWidth:1.5});
+  const optPct={plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#eceee9'}},x:{grid:{display:false}}}};
+  const pal=['#3f8f3a','#1f5f8b','#b7791f','#7a4fa0','#c0392b','#2a9d8f','#5b6470','#d4a017','#8d6e63','#00838f'];
+  // 1) variación por boquilla, última calibración
+  const key=r=>r.iso+'|'+String(r.descarga).replace(/\D/g,'').padStart(4,'0');
+  const ult={}; regs.forEach(r=>{ if(!ult[r.dron]||key(r)>=key(ult[r.dron])) ult[r.dron]=r; });
+  const last=Object.values(ult).sort((a,b)=>orden(a.dron,b.dron));
+  if(last.length){
+    const l1=lim(`+${tol}%`,last.length), l2=lim(`−${tol}%`,last.length); l1.data=l1.data.map(()=>tol); l2.data=l2.data.map(()=>-tol);
+    out.boquillas=pngGrafica({type:'bar',data:{labels:last.map(r=>r.dron),datasets:[
+      {label:'Boquilla 1',data:last.map(r=>+(r.varB1*100).toFixed(2)),backgroundColor:'#3f8f3a',borderRadius:4},
+      {label:'Boquilla 2',data:last.map(r=>+(r.varB2*100).toFixed(2)),backgroundColor:'#9bc89a',borderRadius:4},l1,l2]},options:optPct},
+      'Variación por boquilla — última calibración (%)');
+  }
+  // 2) variación general en el tiempo
+  const fechas=[...new Set(regs.map(r=>r.iso))].sort(), dr=[...new Set(regs.map(r=>r.dron))].sort(orden);
+  if(fechas.length){
+    out.tiempo=pngGrafica({type:'line',data:{labels:fechas.map(x=>x.slice(8,10)+'/'+x.slice(5,7)),datasets:dr.map((d,i)=>({
+      label:d,borderColor:pal[i%pal.length],backgroundColor:pal[i%pal.length],tension:.25,spanGaps:true,pointRadius:4,
+      data:fechas.map(fe=>{const rr=regs.filter(r=>r.dron===d&&r.iso===fe&&r.varGeneral!=null); return rr.length?+(avg(rr.map(r=>r.varGeneral))*100).toFixed(2):null;})}))},options:optPct},
+      'Variación general en el tiempo (%)');
+  }
+  // 3) L/ha real vs teórico
+  const dv=[...new Set(vs.map(v=>v.dron))].sort(orden);
+  if(dv.length){
+    const pr=(d,k)=>{const a=vs.filter(v=>v.dron===d&&v[k]!=null).map(v=>v[k]); return a.length?+avg(a).toFixed(2):null;};
+    out.lha=pngGrafica({type:'bar',data:{labels:dv,datasets:[
+      {label:'L/ha real',data:dv.map(d=>pr(d,'lhaReal')),backgroundColor:dv.map(d=>Math.abs(avg(vs.filter(v=>v.dron===d&&v.variacion!=null).map(v=>v.variacion)))<=tolF?'#3f8f3a':'#c0392b'),borderRadius:4},
+      {type:'line',label:'L/ha teórico',data:dv.map(d=>pr(d,'lhaTeorico')),borderColor:'#141618',borderDash:[5,4],pointRadius:4,pointBackgroundColor:'#141618',borderWidth:1.5}]},
+      options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{beginAtZero:false,min:Math.floor((Math.min(...dv.map(d=>Math.min(pr(d,'lhaReal')??99,pr(d,'lhaTeorico')??99)))-0.2)*10)/10,grid:{color:'#eceee9'},title:{display:true,text:'L/ha'}},x:{grid:{display:false}}}}},
+      'L/ha real vs teórico — promedio por dron');
+  }
+  // 4) variación L/ha por vuelo
+  if(vs.length){
+    const o=vs.slice().sort((a,b)=>a.iso<b.iso?-1:a.iso>b.iso?1:a.fila-b.fila);
+    const l1=lim(`+${tol}%`,o.length), l2=lim(`−${tol}%`,o.length); l1.data=l1.data.map(()=>tol); l2.data=l2.data.map(()=>-tol);
+    out.vuelos=pngGrafica({type:'bar',data:{labels:o.map(v=>v.dron+' '+v.fecha.slice(0,5)),datasets:[
+      {label:'% Var L/ha',data:o.map(v=>v.variacion==null?null:+(v.variacion*100).toFixed(2)),backgroundColor:o.map(v=>v.variacion!=null&&Math.abs(v.variacion)<=tolF?'#3f8f3a':'#c0392b'),borderRadius:3},l1,l2]},options:optPct},
+      'Variación L/ha por vuelo (%)');
+  }
+  return out;
+}
 $('bReporte').onclick=async()=>{
   const d=$('rDesde').value, h=$('rHasta').value;
   if(!d||!h) return toast('Seleccione fecha inicial y final',1);
   if(d>h) return toast('La fecha inicial es mayor que la final',1);
   const b=$('bReporte'); b.disabled=true; b.innerHTML='<span class="spin"></span>Analizando y enviando…';
   try{
-    const j=await api('reporte',{desde:d,hasta:h},{timeout:180000});
+    let graficas=null;
+    try{ b.innerHTML='<span class="spin"></span>Preparando gráficas…'; graficas=await graficasReporte(d,h); }catch(e){ if(e.red) throw e; }
+    b.innerHTML='<span class="spin"></span>Analizando y enviando…';
+    const j=await api('reporte',{desde:d,hasta:h,graficas},{timeout:180000});
     $('rFrame').srcdoc='<!doctype html><meta charset="utf-8"><body style="margin:12px;background:#fff">'+j.html+'</body>';
     $('rCard').classList.remove('hidden');
     toast(`✓ Reporte enviado a ${j.enviadoA}`+(j.avisoPdf?` · ${j.avisoPdf}`:''), !!j.avisoPdf);
@@ -1154,7 +1220,7 @@ function pintarVuelosDash(de,ha,dr){
   dibujar('ch3',{type:'bar',data:{labels:drones,datasets:[
     {label:'L/ha real',data:drones.map(d=>pr(d,'lhaReal')),backgroundColor:drones.map(d=>{ const a=vs.filter(v=>v.dron===d&&v.variacion!=null).map(v=>v.variacion); return Math.abs(avg(a))<=tol?'#3f8f3a':'#c0392b'; }),borderRadius:4},
     {type:'line',label:'L/ha teórico',data:drones.map(d=>pr(d,'lhaTeorico')),borderColor:'#141618',borderDash:[5,4],pointRadius:3,pointBackgroundColor:'#141618',borderWidth:1.5}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':c.parsed.y.toFixed(2)} L/ha`}}},scales:{y:{beginAtZero:false,grid:{color:'#eceee9'},title:{display:true,text:'L/ha'}},x:{grid:{display:false}}}}});
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':c.parsed.y.toFixed(2)} L/ha`}}},scales:{y:{beginAtZero:false,min:drones.length?Math.floor((Math.min(...drones.map(d=>Math.min(pr(d,'lhaReal')??99,pr(d,'lhaTeorico')??99)))-0.2)*10)/10:undefined,grid:{color:'#eceee9'},title:{display:true,text:'L/ha'}},x:{grid:{display:false}}}}});
   const orden=vs.slice().sort((a,b)=>a.iso<b.iso?-1:a.iso>b.iso?1:a.fila-b.fila);
   dibujar('ch4',{type:'bar',data:{labels:orden.map(v=>v.dron+' '+v.fecha.slice(0,5)),datasets:[
     {label:'% Var L/ha',data:orden.map(v=>v.variacion==null?null:+(v.variacion*100).toFixed(2)),backgroundColor:orden.map(v=>v.variacion!=null&&Math.abs(v.variacion)<=tol?'#3f8f3a':'#c0392b'),borderRadius:3},
