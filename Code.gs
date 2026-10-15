@@ -781,10 +781,9 @@ function analizar_(desde, hasta) {
   }
   con.forEach(d => {
     [['Boquilla 1', d.promB1], ['Boquilla 2', d.promB2]].forEach(([b, v]) => {
-      if (d.n >= 2 && Math.abs(v) > tol * 0.6) hall.push('<b>' + h_(d.dron) + '</b>: la ' + b + ' descarga en promedio ' + p_(v) + ' ' + (v < 0 ? 'por debajo' : 'por encima') + ' de lo teórico (tendencia sistemática): revisar boquilla, filtro o presión.');
+      if (d.n >= 2 && Math.abs(v) > tol * 0.6) hall.push('<b>' + h_(d.dron) + '</b>: la ' + b + ' descarga en promedio ' + p_(v) + ' ' + (v < 0 ? 'por debajo' : 'por encima') + ' de lo teórico de forma constante: revisar boquilla, filtro o presión.');
     });
     if (d.n >= 2 && d.desbalance > tol) hall.push('<b>' + h_(d.dron) + '</b>: desbalance promedio entre boquillas de ' + pa_(d.desbalance) + ' del caudal por boquilla: una boquilla trabaja más que la otra.');
-    if (d.tendencia === 'Empeorando') hall.push('<b>' + h_(d.dron) + '</b>: la variación va en aumento dentro del período.');
     if (d.ultimo && !/DENTRO/i.test(d.ultimo.estado)) hall.push('<b>' + h_(d.dron) + '</b>: su última calibración (' + d.ultimo.fecha + ', ' + h_(d.ultimo.descarga) + ') quedó <b>fuera de rango</b>.');
     if (d.vuelos && Math.abs(d.vueloVar) > tol) hall.push('<b>' + h_(d.dron) + '</b>: en vuelo aplicó en promedio ' + p_(d.vueloVar) + ' respecto al L/ha teórico.');
   });
@@ -860,7 +859,7 @@ function analizar_(desde, hasta) {
   }
 
   // ---- Fotos tomadas en el período
-  const fotos = calOrd.filter(r => /^https?:/.test(r.foto)).map(r => ({ url: r.foto, dron: r.dron, fecha: r.fecha, descarga: r.descarga, estado: r.estado, varGeneral: r.varGeneral }));
+  const fotos = calOrd.filter(r => /^https?:/.test(r.foto)).map(r => ({ url: r.foto, dron: r.dron, fecha: r.fecha, descarga: r.descarga, estado: r.estado, varGeneral: r.varGeneral, observaciones: r.observaciones || '' }));
 
   return { desde: desde, hasta: hasta, tol: tol, total: tot, dentro: totDentro, drones: drones, hallazgos: hall, recomendaciones: rec, vuelos: vue.length,
     observaciones: obs, resumenVuelos: resumenVuelos, serieTiempo: serieTiempo, listaVuelos: listaVuelos,
@@ -891,7 +890,6 @@ function htmlReporte_(a, u, modo, g, fotos) {
     '<td ' + td + '>' + pa_(d.promAbsGen, 2) + '</td><td ' + td + '>' + pa_(d.maxAbs, 1) + '</td>' +
     '<td ' + td + '>' + pa_(d.desbalance, 1) + '</td>' +
     '<td ' + td + '>' + d.fuera1 + ' / ' + d.fuera2 + '</td>' +
-    '<td ' + td + '>' + d.tendencia + '</td>' +
     '<td ' + td + '>' + (d.ultimo ? d.ultimo.fecha + ' ' + h_(d.ultimo.descarga) + ' · <b style="color:' + (/DENTRO/i.test(d.ultimo.estado) ? VERDE : ROJO) + '">' + (/DENTRO/i.test(d.ultimo.estado) ? 'OK' : 'FUERA') + '</b>' : '—') + '</td>' +
     '</tr>').join('');
   const conV = a.drones.filter(d => d.vuelos);
@@ -918,8 +916,8 @@ function htmlReporte_(a, u, modo, g, fotos) {
     (a.recomendaciones.length ? h3('Recomendaciones') + '<ul style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6">' + a.recomendaciones.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '') +
     h3('Detalle por dron — calibraciones') +
     '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><tr>' +
-    ['Dron', 'Estado', 'Calib.', '% dentro de rango', 'Var. prom. B1', 'Var. prom. B2', '|Var. gral.| prom.', 'Var. máx.', 'Desbalance B1–B2', 'Fuera B1 / B2', 'Tendencia', 'Última calibración'].map(x => '<th ' + th + '>' + x + '</th>').join('') +
-    '</tr>' + (filas || '<tr><td ' + td + ' colspan="12">Sin datos</td></tr>') + '</table></div>' +
+    ['Dron', 'Estado', 'Calib.', '% dentro de rango', 'Var. prom. B1', 'Var. prom. B2', '|Var. gral.| prom.', 'Var. máx.', 'Desbalance B1–B2', 'Fuera B1 / B2', 'Última calibración'].map(x => '<th ' + th + '>' + x + '</th>').join('') +
+    '</tr>' + (filas || '<tr><td ' + td + ' colspan="11">Sin datos</td></tr>') + '</table></div>' +
     (g.boquillas || g.tiempo ? h3('Gráficas de calibración') + img('boquillas') + img('tiempo') : '') +
     ((a.estabilidad || []).length ? h3('Estabilidad por boquilla (CV %)') +
       '<p style="font-size:12px;color:' + GRIS + ';margin:0 0 8px">El coeficiente de variación mide qué tan pareja es la descarga de cada boquilla entre calibraciones: ' +
@@ -953,10 +951,11 @@ function htmlReporte_(a, u, modo, g, fotos) {
         const ok = /DENTRO/i.test(f.estado);
         return (i && i % 4 === 0 ? '</tr><tr>' : '') + '<td style="width:25%;padding:6px;vertical-align:top"><a href="' + h_(f.url) + '" style="text-decoration:none;color:#1b1e21">' +
           (src ? '<img src="' + src + '" alt="" style="width:100%;max-width:200px;border-radius:6px;display:block;border:1px solid #dfe2dc">' : '<div style="padding:30px 6px;border:1px dashed #cfdccf;border-radius:6px;text-align:center;font-size:11px;color:' + VERDE + '">Ver foto</div>') +
-          '<div style="font-size:11px;margin-top:4px"><b>' + h_(f.dron) + '</b> · ' + f.fecha + ' · ' + h_(f.descarga) + ' · <b style="color:' + (ok ? VERDE : ROJO) + '">' + (ok ? 'OK' : 'FUERA') + '</b></div></a></td>';
+          '<div style="font-size:11px;margin-top:4px"><b>' + h_(f.dron) + '</b> · ' + f.fecha + ' · ' + h_(f.descarga) + ' · <b style="color:' + (ok ? VERDE : ROJO) + '">' + (ok ? 'OK' : 'FUERA') + '</b></div>' +
+          (f.observaciones ? '<div style="font-size:11px;margin-top:2px;color:' + GRIS + ';font-style:italic">' + h_(f.observaciones) + '</div>' : '') + '</a></td>';
       }).join('') + '</tr></table>' : '') +
     '<p style="font-size:11px;color:' + GRIS + ';margin:16px 0 0;line-height:1.5"><b style="color:' + VERDE + '">Cómo leerlo:</b> la variación compara la descarga de cada boquilla con el caudal teórico por boquilla (L/ha × velocidad × ancho × 60 ÷ 10 000 ÷ 2). ' +
-    'Desbalance = |B1 − B2| ÷ caudal por boquilla. Tendencia compara la primera y la segunda mitad del período. ' +
+    'Desbalance = |B1 − B2| ÷ caudal por boquilla. ' +
     'Estado: <b style="color:' + VERDE + '">Bueno</b> = 80% o más dentro de rango y última calibración OK; <b style="color:' + ROJO + '">Crítico</b> = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; <b style="color:' + AMBAR + '">Atención</b> = el resto.</p>' +
     '</div>';
 }
@@ -1148,16 +1147,16 @@ function pdfReporte_(a, u, nombre, g, fotos) {
 
     tituloDoc_(body, 'Detalle por dron — calibraciones');
     const tD = tablaDoc_(body,
-      ['Dron', 'Estado', 'Calib.', '% dentro', 'Var. B1', 'Var. B2', '|Var. gral.|', 'Var. máx.', 'Desbalance', 'Fuera B1/B2', 'Tendencia', 'Última calibración'],
-      a.drones.map(d => [d.dron, d.clase, String(d.n), d.n ? pa_(d.pctDentro, 0) : '—', p_(d.promB1), p_(d.promB2), pa_(d.promAbsGen, 2), pa_(d.maxAbs, 1), pa_(d.desbalance, 1), d.fuera1 + ' / ' + d.fuera2, d.tendencia,
+      ['Dron', 'Estado', 'Calib.', '% dentro', 'Var. B1', 'Var. B2', '|Var. gral.|', 'Var. máx.', 'Desbalance', 'Fuera B1/B2', 'Última calibración'],
+      a.drones.map(d => [d.dron, d.clase, String(d.n), d.n ? pa_(d.pctDentro, 0) : '—', p_(d.promB1), p_(d.promB2), pa_(d.promAbsGen, 2), pa_(d.maxAbs, 1), pa_(d.desbalance, 1), d.fuera1 + ' / ' + d.fuera2,
         d.ultimo ? d.ultimo.fecha + ' ' + d.ultimo.descarga + ' · ' + (/DENTRO/i.test(d.ultimo.estado) ? 'OK' : 'FUERA') : '—']),
-      [48, 62, 36, 46, 48, 48, 52, 46, 54, 52, 66, 0]);
+      [52, 64, 40, 52, 54, 54, 60, 52, 60, 58, 0]);
     a.drones.forEach((d, i) => {
       const r = tD.getRow(i + 1);
       r.getCell(0).editAsText().setBold(true);
       r.getCell(1).editAsText().setBold(true).setForegroundColor(COLOR_CLASE[d.clase]);
       r.getCell(3).editAsText().setBold(true).setForegroundColor(d.pctDentro >= 0.8 ? VERDE : d.pctDentro >= 0.5 ? AMBAR : ROJO);
-      if (d.ultimo) r.getCell(11).editAsText().setForegroundColor(/DENTRO/i.test(d.ultimo.estado) ? VERDE : ROJO);
+      if (d.ultimo) r.getCell(10).editAsText().setForegroundColor(/DENTRO/i.test(d.ultimo.estado) ? VERDE : ROJO);
     });
 
     if (g.boquillas || g.tiempo) {
@@ -1240,10 +1239,14 @@ function pdfReporte_(a, u, nombre, g, fotos) {
         cap.editAsText().setBold(0, String(f.dron).length - 1, true);
         const t = cap.getText(); cap.editAsText().setForegroundColor(t.length - (ok ? 2 : 5), t.length - 1, ok ? VERDE : ROJO).setBold(t.length - (ok ? 2 : 5), t.length - 1, true);
         cap.setLinkUrl(f.url);
+        if (f.observaciones) {
+          const ob = cell.appendParagraph(f.observaciones);
+          ob.editAsText().setFontSize(8).setBold(false).setItalic(true).setForegroundColor(GRIS).setFontFamily('Arial');
+        }
       });
     }
 
-    const nota = body.appendParagraph('Cómo leerlo: la variación compara la descarga de cada boquilla con el caudal teórico por boquilla (L/ha × velocidad × ancho × 60 ÷ 10 000 ÷ 2). Desbalance = |B1 − B2| ÷ caudal por boquilla. Tendencia compara la primera y la segunda mitad del período. Estado: Bueno = 80% o más dentro de rango y última calibración OK; Crítico = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; Atención = el resto.');
+    const nota = body.appendParagraph('Cómo leerlo: la variación compara la descarga de cada boquilla con el caudal teórico por boquilla (L/ha × velocidad × ancho × 60 ÷ 10 000 ÷ 2). Desbalance = |B1 − B2| ÷ caudal por boquilla. Estado: Bueno = 80% o más dentro de rango y última calibración OK; Crítico = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; Atención = el resto.');
     nota.setSpacingBefore(12);
     nota.editAsText().setFontSize(8).setBold(false).setForegroundColor(GRIS).setFontFamily('Arial').setBold(0, 12, true).setForegroundColor(0, 12, VERDE);
 
