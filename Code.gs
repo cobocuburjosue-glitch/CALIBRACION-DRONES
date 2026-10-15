@@ -780,10 +780,6 @@ function analizar_(desde, hasta) {
     if (peor.dron !== mejor.dron) hall.push('Mayor dificultad: <b>' + h_(peor.dron) + '</b> (' + pa_(peor.pctDentro) + ' dentro de rango, variación general promedio ' + pa_(peor.promAbsGen, 2) + ').');
   }
   con.forEach(d => {
-    [['Boquilla 1', d.promB1], ['Boquilla 2', d.promB2]].forEach(([b, v]) => {
-      if (d.n >= 2 && Math.abs(v) > tol * 0.6) hall.push('<b>' + h_(d.dron) + '</b>: la ' + b + ' descarga en promedio ' + p_(v) + ' ' + (v < 0 ? 'por debajo' : 'por encima') + ' de lo teórico de forma constante: revisar boquilla, filtro o presión.');
-    });
-    if (d.n >= 2 && d.desbalance > tol) hall.push('<b>' + h_(d.dron) + '</b>: desbalance promedio entre boquillas de ' + pa_(d.desbalance) + ' del caudal por boquilla: una boquilla trabaja más que la otra.');
     if (d.ultimo && !/DENTRO/i.test(d.ultimo.estado)) hall.push('<b>' + h_(d.dron) + '</b>: su última calibración (' + d.ultimo.fecha + ', ' + h_(d.ultimo.descarga) + ') quedó <b>fuera de rango</b>.');
     if (d.vuelos && Math.abs(d.vueloVar) > tol) hall.push('<b>' + h_(d.dron) + '</b>: en vuelo aplicó en promedio ' + p_(d.vueloVar) + ' respecto al L/ha teórico.');
   });
@@ -829,9 +825,6 @@ function analizar_(desde, hasta) {
     });
     return fila;
   });
-  estab.forEach(e => [['b1', 'Boquilla 1'], ['b2', 'Boquilla 2']].forEach(([b, nom]) => {
-    if (e[b].nivel === 'Revisar') hall.push('<b>' + h_(e.dron) + '</b>: la ' + nom + ' es inestable (CV ' + pa_(e[b].cv, 1) + ', variación de ' + p_(e[b].min, 1) + ' a ' + p_(e[b].max, 1) + '): revisar desgaste, obstrucción o presión.');
-  }));
 
   // ---- Relación calibración → vuelo
   const calOrd = cal.slice().sort((x, y) => clave(x) < clave(y) ? -1 : 1);
