@@ -888,9 +888,9 @@ function htmlReporte_(a, u, modo, g, fotos) {
   const conV = a.drones.filter(d => d.vuelos);
   const cv = x => 'style="padding:6px;border-top:1px solid #dfe2dc;font-size:11px;color:' + (Math.abs(x) > a.tol ? ROJO : VERDE) + ';font-weight:bold"';
   const filasV = conV.map(d => '<tr><td ' + td + '><b>' + h_(d.dron) + '</b></td><td ' + td + '>' + d.vuelos + '</td><td ' + cv(d.vueloVar) + '>' + p_(d.vueloVar) + '</td><td ' + td + '>' + pa_(d.vueloAbsVar, 2) + '</td><td ' + td + '>' + p_(d.vueloVarQ) + '</td><td ' + td + '>' + d.vuelosFuera + '</td></tr>').join('');
-  const kpi = (t, v, s, c) => '<td style="padding:5px;width:25%"><div style="border:1px solid #d5e5d5;border-top:4px solid ' + c + ';border-radius:8px;padding:10px 12px;background:#fff"><div style="font-size:11px;color:' + GRIS + ';text-transform:uppercase;letter-spacing:.05em">' + t + '</div><div style="font-size:26px;font-weight:bold;color:' + c + '">' + v + '</div><div style="font-size:11px;color:' + GRIS + '">' + (s || '') + '</div></div></td>';
+  const kpi = (t, v, s, c) => '<td style="padding:5px;width:33%"><div style="border:1px solid #d5e5d5;border-top:4px solid ' + c + ';border-radius:8px;padding:10px 12px;background:#fff"><div style="font-size:11px;color:' + GRIS + ';text-transform:uppercase;letter-spacing:.05em">' + t + '</div><div style="font-size:26px;font-weight:bold;color:' + c + '">' + v + '</div><div style="font-size:11px;color:' + GRIS + '">' + (s || '') + '</div></div></td>';
   const conN = a.drones.filter(d => d.n).length;
-  const nBuenos = a.drones.filter(d => d.clase === 'Bueno').length, nCrit = a.drones.filter(d => d.clase === 'Crítico').length;
+  const nCalibrados = a.drones.filter(d => d.ultimo && /DENTRO/i.test(d.ultimo.estado)).length;
   const pctOk = a.total ? a.dentro / a.total : 0;
   const obs = (a.observaciones || []).map(o => '<tr><td ' + td + '>' + o.fecha + '</td><td ' + td + '><b>' + h_(o.dron) + '</b></td><td ' + td + '>' + o.tipo + ' ' + h_(o.ref) + '</td><td ' + td + '>' + h_(o.texto) + '</td></tr>').join('');
   return '<div style="font-family:Arial,Helvetica,sans-serif;color:#1b1e21;max-width:900px">' +
@@ -902,8 +902,7 @@ function htmlReporte_(a, u, modo, g, fotos) {
     '<table style="width:100%;border-collapse:collapse;margin-top:12px"><tr>' +
     kpi('Calibraciones', a.total, conN + ' drones', VERDE_OSC) +
     kpi('Dentro de rango', a.total ? pa_(pctOk, 0) : '—', a.dentro + ' de ' + a.total, pctOk >= 0.8 ? VERDE : pctOk >= 0.5 ? AMBAR : ROJO) +
-    kpi('Drones en buen estado', nBuenos, 'de ' + conN, VERDE) +
-    kpi('Drones críticos', nCrit, 'requieren recalibración', nCrit ? ROJO : VERDE) +
+    kpi('Drones calibrados', nCalibrados, 'de ' + conN + ' quedaron dentro de rango al final', nCalibrados === conN ? VERDE : AMBAR) +
     '</tr></table>' +
     h3('Hallazgos principales') + '<ul style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6">' + a.hallazgos.map(x => '<li>' + x + '</li>').join('') + '</ul>' +
     (a.recomendaciones.length ? h3('Recomendaciones') + '<ul style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6">' + a.recomendaciones.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '') +
@@ -1124,11 +1123,10 @@ function pdfReporte_(a, u, nombre, g, fotos) {
 
     // KPIs
     const conN = a.drones.filter(d => d.n).length, pctOk = a.total ? a.dentro / a.total : 0;
-    const nCrit = a.drones.filter(d => d.clase === 'Crítico').length;
+    const nCalibrados = a.drones.filter(d => d.ultimo && /DENTRO/i.test(d.ultimo.estado)).length;
     const kp = [['CALIBRACIONES', String(a.total), conN + ' drones', VERDE_OSC],
                 ['DENTRO DE RANGO', a.total ? pa_(pctOk, 0) : '—', a.dentro + ' de ' + a.total, pctOk >= 0.8 ? VERDE : pctOk >= 0.5 ? AMBAR : ROJO],
-                ['DRONES EN BUEN ESTADO', String(a.drones.filter(d => d.clase === 'Bueno').length), 'de ' + conN, VERDE],
-                ['DRONES CRÍTICOS', String(nCrit), 'requieren recalibración', nCrit ? ROJO : VERDE]];
+                ['DRONES CALIBRADOS', String(nCalibrados), 'de ' + conN + ' quedaron dentro de rango al final', nCalibrados === conN ? VERDE : AMBAR]];
     kpisDoc_(body, kp);
 
     tituloDoc_(body, 'Hallazgos principales');
