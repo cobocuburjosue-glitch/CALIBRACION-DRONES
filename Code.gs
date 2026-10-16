@@ -89,7 +89,7 @@ function doPost(e) {
       case 'guardar':    return json_(conSesion_(p.token, u => guardar_(u, p.datos)));
       case 'guardarVuelo': return json_(conSesion_(p.token, u => guardarVuelo_(u, p.datos)));
       case 'vuelos':     return json_(conSesion_(p.token, u => ({ ok: true, vuelos: vuelos_(60) })));
-      case 'reporte':    return json_(conSesion_(p.token, u => generarReporte_(u, p.desde, p.hasta, p.enviar !== false, p.graficas)));
+      case 'reporte':    return json_(conSesion_(p.token, u => generarReporte_(u, p.desde, p.hasta, p.enviar !== false, p.graficas, p.comoLeer === true)));
       case 'editarCalibracion': return json_(conSesion_(p.token, u => editarCalibracion_(u, p.datos)));
       case 'editarVuelo': return json_(conSesion_(p.token, u => editarVuelo_(u, p.datos)));
       case 'hoy':        return json_(conSesion_(p.token, u => ({ ok: true, registros: registros_(true) })));
@@ -947,9 +947,10 @@ function htmlReporte_(a, u, modo, g, fotos) {
           ((f.otros || []).length ? '<div style="font-size:10px;margin-top:2px;color:' + GRIS + '">Misma foto: ' + h_(otrosFoto_(f)) + '</div>' : '') +
           (f.observaciones ? '<div style="font-size:11px;margin-top:2px;color:' + GRIS + ';font-style:italic">' + h_(f.observaciones) + '</div>' : '') + '</a></td>';
       }).join('') + '</tr></table>' : '') +
+    (a.comoLeer ?
     '<p style="font-size:11px;color:' + GRIS + ';margin:16px 0 0;line-height:1.5"><b style="color:' + VERDE + '">Cómo leerlo:</b> la variación compara la descarga de cada boquilla con el caudal teórico por boquilla (L/ha × velocidad × ancho × 60 ÷ 10 000 ÷ 2). ' +
     'Desbalance = |B1 − B2| ÷ caudal por boquilla. ' +
-    'Estado: <b style="color:' + VERDE + '">Bueno</b> = 80% o más dentro de rango y última calibración OK; <b style="color:' + ROJO + '">Crítico</b> = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; <b style="color:' + AMBAR + '">Atención</b> = el resto.</p>' +
+    'Estado: <b style="color:' + VERDE + '">Bueno</b> = 80% o más dentro de rango y última calibración OK; <b style="color:' + ROJO + '">Crítico</b> = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; <b style="color:' + AMBAR + '">Atención</b> = el resto.</p>' : '') +
     '</div>';
 }
 
@@ -1242,9 +1243,11 @@ function pdfReporte_(a, u, nombre, g, fotos) {
       });
     }
 
+    if (a.comoLeer) {
     const nota = body.appendParagraph('Cómo leerlo: la variación compara la descarga de cada boquilla con el caudal teórico por boquilla (L/ha × velocidad × ancho × 60 ÷ 10 000 ÷ 2). Desbalance = |B1 − B2| ÷ caudal por boquilla. Estado: Bueno = 80% o más dentro de rango y última calibración OK; Crítico = menos de 50% dentro de rango, o última calibración fuera con menos de 80%; Atención = el resto.');
     nota.setSpacingBefore(12);
     nota.editAsText().setFontSize(8).setBold(false).setForegroundColor(GRIS).setFontFamily('Arial').setBold(0, 12, true).setForegroundColor(0, 12, VERDE);
+    }
 
     doc.saveAndClose();
     return DriveApp.getFileById(id).getAs('application/pdf').setName(nombre);
@@ -1302,11 +1305,12 @@ function graficasDeApp_(gc) {
   return g;
 }
 
-function generarReporte_(u, desde, hasta, enviar, graficasApp) {
+function generarReporte_(u, desde, hasta, enviar, graficasApp, comoLeer) {
   if (!u.esAdmin) return { ok: false, error: 'Solo el administrador puede generar reportes.' };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(desde || '') || !/^\d{4}-\d{2}-\d{2}$/.test(hasta || '')) return { ok: false, error: 'Seleccione fecha inicial y final.' };
   if (desde > hasta) return { ok: false, error: 'La fecha inicial es mayor que la final.' };
   const a = analizar_(desde, hasta);
+  a.comoLeer = !!comoLeer;                       // incluir o no la nota "Cómo leerlo"
   let g = graficasDeApp_(graficasApp);
   if (!Object.keys(g).length) g = graficas_(a);
   let fotos = []; try { fotos = fotosReporte_(a); } catch (e) {}

@@ -486,6 +486,11 @@ tr.pend td{background:#fff8ea!important}
           <div class="field"><label for="rHasta">Fecha final</label><input id="rHasta" type="date"></div>
           <div class="field" style="grid-column:span 2"><button class="btn" type="button" id="bReporte">Generar y enviar a mi correo</button></div>
         </div>
+        <div class="field" style="margin-top:12px"><label>Formato del reporte</label>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:14px">
+            <label style="display:flex;gap:8px;align-items:center;margin:0;text-transform:none;letter-spacing:0;color:var(--text);font-weight:500;cursor:pointer"><input type="radio" name="rFormato" value="simple" checked style="width:18px;height:18px"> Sin "Cómo leerlo"</label>
+            <label style="display:flex;gap:8px;align-items:center;margin:0;text-transform:none;letter-spacing:0;color:var(--text);font-weight:500;cursor:pointer"><input type="radio" name="rFormato" value="detalle" style="width:18px;height:18px"> Con "Cómo leerlo" (explicación de los cálculos)</label>
+          </div></div>
         <p class="note" id="rNota">El reporte se envía al correo del administrador registrado en la pestaña USUARIOS, con el PDF adjunto.</p>
       </div>
       <div class="card hidden" id="rCard">
@@ -1127,7 +1132,8 @@ $('bReporte').onclick=async()=>{
     let graficas=null;
     try{ b.innerHTML='<span class="spin"></span>Preparando gráficas…'; graficas=await graficasReporte(d,h); }catch(e){ if(e.red) throw e; }
     b.innerHTML='<span class="spin"></span>Analizando y enviando…';
-    const j=await api('reporte',{desde:d,hasta:h,graficas},{timeout:180000});
+    const comoLeer=(document.querySelector('input[name=rFormato]:checked')||{}).value==='detalle';
+    const j=await api('reporte',{desde:d,hasta:h,graficas,comoLeer},{timeout:180000});
     $('rFrame').srcdoc='<!doctype html><meta charset="utf-8"><body style="margin:12px;background:#fff">'+j.html+'</body>';
     $('rCard').classList.remove('hidden');
     toast(`✓ Reporte enviado a ${j.enviadoA}`+(j.avisoPdf?` · ${j.avisoPdf}`:''), !!j.avisoPdf);
