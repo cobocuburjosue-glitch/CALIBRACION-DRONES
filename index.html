@@ -513,6 +513,12 @@ tr.pend td{background:#fff8ea!important}
     <h2 id="eTitulo">Editar registro</h2>
     <p class="note" id="eSub" style="margin:0 0 12px"></p>
     <div class="grid2" id="eCampos"></div>
+    <div class="field hidden" id="eFotoBox"><label>Foto de la calibración</label>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <a id="eFotoLink" href="#" target="_blank" rel="noopener" class="btn ghost" style="width:auto;height:38px;font-size:14px">Ver foto</a>
+        <label style="display:flex;gap:8px;align-items:center;margin:0;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);font-weight:500;cursor:pointer">
+          <input type="checkbox" id="eQuitarFoto" style="width:18px;height:18px"> Quitar esta foto del registro (no sale en el reporte)</label>
+      </div></div>
     <div class="field"><label for="eObs">Observaciones</label><textarea id="eObs" maxlength="500"></textarea></div>
     <div class="res" id="eRes" style="margin-bottom:14px"></div>
     <div class="row" style="display:flex;gap:10px">
@@ -1253,6 +1259,9 @@ function abrirEditarCal(fila){
     campoE('eLha','L/ha teórico',r.lhaTeorico)+campoE('eVel','Velocidad (m/s)',r.velMs)+
     campoE('eAncho','Ancho de faja (m)',r.ancho);
   $('eObs').value=r.observaciones||'';
+  const tieneFoto=/^https?:/.test(r.foto||'');
+  $('eFotoBox').classList.toggle('hidden',!tieneFoto); $('eQuitarFoto').checked=false;
+  if(tieneFoto) $('eFotoLink').href=r.foto;
   ['eDron','eLabor'].forEach(id=>$(id).addEventListener('change',()=>{
     const d=S.cat.drones.find(x=>x.dron===$('eDron').value), l=S.cat.labores.find(x=>x.labor===$('eLabor').value);
     if(id==='eDron'&&d){ $('eVel').value=d.vel; $('eAncho').value=d.ancho; }
@@ -1275,7 +1284,7 @@ function abrirEditarVue(fila){
     campoE('eAreaPol','Área del polígono (ha)',v.areaPoligono)+campoE('eDist','Distancia máx. (m)',v.distanciaMax)+
     campoE('eCarga','Carga inicial (L)',v.carga)+campoE('eAreaReal','Área real (ha)',v.areaReal)+
     campoE('eAplic','Lts aplicados (L)',v.aplicados)+campoE('eDev','Lts devueltos (L)',v.devueltos);
-  $('eObs').value=v.observaciones||'';
+  $('eObs').value=v.observaciones||''; $('eFotoBox').classList.add('hidden'); $('eQuitarFoto').checked=false;
   $('eLabor').addEventListener('change',()=>{ const l=S.cat.labores.find(x=>x.labor===$('eLabor').value); if(l) $('eLha').value=l.lha; previewE(); });
   $('eCampos').querySelectorAll('input').forEach(x=>x.addEventListener('input',previewE));
   previewE(); $('mEditar').classList.remove('hidden');
@@ -1309,7 +1318,8 @@ $('fEditar').addEventListener('submit',async ev=>{
   try{
     if(E.tipo==='cal'){
       await api('editarCalibracion',{datos:{ fila:r.fila, fechaOrig:r.fecha, dronOrig:r.dron, dron:g('eDron'), labor:g('eLabor'), supervisor:g('eSup'),
-        tiempo:g('eTiempo'), b1:g('eB1'), b2:g('eB2'), lha:g('eLha'), vel:g('eVel'), ancho:g('eAncho'), observaciones:g('eObs') }});
+        tiempo:g('eTiempo'), b1:g('eB1'), b2:g('eB2'), lha:g('eLha'), vel:g('eVel'), ancho:g('eAncho'), observaciones:g('eObs'),
+        quitarFoto:$('eQuitarFoto').checked }});
     } else {
       await api('editarVuelo',{datos:{ fila:r.fila, dronOrig:r.dron, dron:g('eDron'), labor:g('eLabor'), lha:g('eLha'),
         areaPoligono:g('eAreaPol'), distanciaMax:g('eDist'), carga:g('eCarga'), areaReal:g('eAreaReal'), aplicados:g('eAplic'), devueltos:g('eDev'), observaciones:g('eObs') }});

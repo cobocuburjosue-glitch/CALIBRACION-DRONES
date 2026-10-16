@@ -436,7 +436,7 @@ function editarCalibracion_(u, d) {
       observaciones: textoObs_(d.observaciones),
       parametros: par.manual ? 'MANUAL (admin)' : 'AUTOMATICO',
       editadoPor: editado_(u)
-    }));
+    }, d.quitarFoto ? { foto: '' } : {}));
     return { ok: true, calculo: c };
   } finally { lock.releaseLock(); }
 }
