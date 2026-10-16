@@ -937,13 +937,14 @@ function htmlReporte_(a, u, modo, g, fotos) {
         '<td ' + td + '>' + p_(r.calVar) + '</td><td ' + td + '><b style="color:' + (r.vueOk ? VERDE : r.vueOk === false ? ROJO : GRIS) + '">' + p_(r.vueVar) + '</b></td>' +
         '<td ' + td + '><b style="color:' + r.color + '">' + h_(r.diag) + '</b></td></tr>').join('') + '</table>' : '') +
     (obs ? h3('Observaciones de campo') + '<table style="border-collapse:collapse;width:100%"><tr>' + ['Fecha', 'Dron', 'Registro', 'Observación'].map(x => '<th ' + th + '>' + x + '</th>').join('') + '</tr>' + obs + '</table>' : '') +
-    (fotos.length ? h3('Fotos de calibración (' + fotos.length + (a.fotos.length > fotos.length ? ' de ' + a.fotos.length : '') + ')') +
+    (fotos.length ? h3('Fotos de calibración (' + fotos.length + (a.fotosRecortadas ? ', las más recientes' : '') + ')') +
       '<table style="border-collapse:collapse;width:100%"><tr>' + fotos.map((f, i) => {
         const src = modo === 'correo' ? (f.mini ? 'cid:foto_' + i : '') : (f.mini ? 'data:' + ((f.mini.getContentType && f.mini.getContentType()) || 'image/png') + ';base64,' + Utilities.base64Encode(f.mini.getBytes()) : '');
         const ok = /DENTRO/i.test(f.estado);
         return (i && i % 4 === 0 ? '</tr><tr>' : '') + '<td style="width:25%;padding:6px;vertical-align:top"><a href="' + h_(f.url) + '" style="text-decoration:none;color:#1b1e21">' +
           (src ? '<img src="' + src + '" alt="" style="width:100%;max-width:200px;border-radius:6px;display:block;border:1px solid #dfe2dc">' : '<div style="padding:30px 6px;border:1px dashed #cfdccf;border-radius:6px;text-align:center;font-size:11px;color:' + VERDE + '">Ver foto</div>') +
           '<div style="font-size:11px;margin-top:4px"><b>' + h_(f.dron) + '</b> · ' + f.fecha + ' · ' + h_(f.descarga) + ' · <b style="color:' + (ok ? VERDE : ROJO) + '">' + (ok ? 'OK' : 'FUERA') + '</b></div>' +
+          ((f.otros || []).length ? '<div style="font-size:10px;margin-top:2px;color:' + GRIS + '">Misma foto: ' + h_(otrosFoto_(f)) + '</div>' : '') +
           (f.observaciones ? '<div style="font-size:11px;margin-top:2px;color:' + GRIS + ';font-style:italic">' + h_(f.observaciones) + '</div>' : '') + '</a></td>';
       }).join('') + '</tr></table>' : '') +
     '<p style="font-size:11px;color:' + GRIS + ';margin:16px 0 0;line-height:1.5"><b style="color:' + VERDE + '">Cómo leerlo:</b> la variación compara la descarga de cada boquilla con el caudal teórico por boquilla (L/ha × velocidad × ancho × 60 ÷ 10 000 ÷ 2). ' +
@@ -1210,7 +1211,7 @@ function pdfReporte_(a, u, nombre, g, fotos) {
     }
 
     if (fotos.length) {
-      tituloDoc_(body, 'Fotos de calibración (' + fotos.length + (a.fotos.length > fotos.length ? ' de ' + a.fotos.length : '') + ')');
+      tituloDoc_(body, 'Fotos de calibración (' + fotos.length + (a.fotosRecortadas ? ', las más recientes' : '') + ')');
       const filasF = [];
       for (let i = 0; i < fotos.length; i += 3) filasF.push(['', '', '']);
       const tF = body.appendTable(filasF);
@@ -1230,6 +1231,10 @@ function pdfReporte_(a, u, nombre, g, fotos) {
         cap.editAsText().setBold(0, String(f.dron).length - 1, true);
         const t = cap.getText(); cap.editAsText().setForegroundColor(t.length - (ok ? 2 : 5), t.length - 1, ok ? VERDE : ROJO).setBold(t.length - (ok ? 2 : 5), t.length - 1, true);
         cap.setLinkUrl(f.url);
+        if ((f.otros || []).length) {
+          const ot = cell.appendParagraph('Misma foto: ' + otrosFoto_(f));
+          ot.editAsText().setFontSize(7).setBold(false).setItalic(false).setForegroundColor(GRIS).setFontFamily('Arial');
+        }
         if (f.observaciones) {
           const ob = cell.appendParagraph(f.observaciones);
           ob.editAsText().setFontSize(8).setBold(false).setItalic(true).setForegroundColor(GRIS).setFontFamily('Arial');
@@ -1253,16 +1258,31 @@ function idDrive_(url) { const m = String(url).match(/\/d\/([\w-]{20,})/) || Str
 
 /** Descarga las fotos del período (máx. MAX_FOTOS): imagen completa para el PDF y miniatura para el correo. */
 function fotosReporte_(a) {
-  const out = [];
-  (a.fotos || []).slice(-MAX_FOTOS).forEach(f => {
-    const id = idDrive_(f.url); if (!id) return;
+  // Fotos sin repetir: misma imagen (aunque se haya subido en varias calibraciones) sale una sola vez.
+  const unicas = [], porHuella = {}, porId = {};
+  const lista = (a.fotos || []).slice().reverse();          // de la más reciente a la más antigua
+  a.fotosRecortadas = false;
+  for (const f of lista) {
+    const id = idDrive_(f.url); if (!id) continue;
+    const ref = { dron: f.dron, fecha: f.fecha, descarga: f.descarga, estado: f.estado, observaciones: f.observaciones };
+    if (porId[id]) { porId[id].otros.push(ref); continue; }
+    if (unicas.length >= MAX_FOTOS) { a.fotosRecortadas = true; break; }
     try {
       const file = DriveApp.getFileById(id);
+      const blob = file.getBlob();
+      const huella = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, blob.getBytes()));
+      if (porHuella[huella]) { porHuella[huella].otros.push(ref); porId[id] = porHuella[huella]; continue; }
       let mini = null; try { mini = file.getThumbnail(); } catch (e) {}
-      out.push(Object.assign({}, f, { blob: file.getBlob(), mini: mini }));
+      const item = Object.assign({}, f, { blob: blob, mini: mini, otros: [] });
+      porHuella[huella] = item; porId[id] = item; unicas.push(item);
     } catch (e) {}
-  });
-  return out;
+  }
+  return unicas.reverse();                                   // en orden cronológico
+}
+
+/** Texto de las otras calibraciones que usan la misma foto. */
+function otrosFoto_(f) {
+  return (f.otros || []).map(o => o.dron + ' · ' + o.fecha + ' · ' + o.descarga).join(' | ');
 }
 
 function imagenesCorreo_(g, fotos) {

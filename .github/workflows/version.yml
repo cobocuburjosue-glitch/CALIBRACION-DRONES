@@ -1,0 +1,52 @@
+name: Version de la app
+
+# Cada vez que cambia la app (página, service worker o recursos) se genera la versión:
+#   primera del día  -> V16102026
+#   siguientes       -> V16102026-1, V16102026-2, ...
+on:
+  push:
+    branches: [main]
+    paths: ['index.html', 'sw.js', 'manifest.json', 'logo.png', 'icon-192.png', 'icon-512.png']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: version-app
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calcular versión
+        id: v
+        run: |
+          HOY="V$(TZ=America/Guatemala date +%d%m%Y)"
+          PREV=""
+          [ -f app-version.json ] && PREV=$(python3 -c "import json;print(json.load(open('app-version.json')).get('version',''))")
+          if [ "$PREV" = "$HOY" ]; then
+            NUEVA="$HOY-1"
+          elif [[ "$PREV" == "$HOY-"* ]]; then
+            N=${PREV##*-}; NUEVA="$HOY-$((N+1))"
+          else
+            NUEVA="$HOY"
+          fi
+          echo "version=$NUEVA" >> "$GITHUB_OUTPUT"
+          printf '{"version": "%s", "fecha": "%s", "commit": "%s"}\n' "$NUEVA" "$(TZ=America/Guatemala date '+%d/%m/%Y %H:%M')" "${GITHUB_SHA::7}" > app-version.json
+          cat app-version.json
+
+      - name: Guardar versión
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app-version.json
+          git commit -m "Versión ${{ steps.v.outputs.version }}" || exit 0
+          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep 5; done
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" || true

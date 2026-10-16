@@ -201,6 +201,9 @@ td.obs{white-space:normal;min-width:180px;max-width:320px;color:var(--muted);fon
 .cola-item .acc button{border:1px solid var(--line);background:#fff;border-radius:8px;height:30px;padding:0 10px;font-size:12px;cursor:pointer}
 tr.pend td{background:#fff8ea!important}
 .offnote{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px}
+.ver{font:600 11px/1 'Barlow',system-ui,sans-serif;letter-spacing:.06em;color:#9aa1a7;white-space:nowrap}
+.ver-login{position:fixed;top:12px;right:16px;color:#7d848b;z-index:5}
+.tabs-in .ver{margin-left:auto;align-self:center;padding:0 8px 0 16px}
 .inline-actions{display:flex;gap:10px;margin-top:6px}
 .note{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
@@ -209,6 +212,7 @@ tr.pend td{background:#fff8ea!important}
 
 <!-- ===================== LOGIN ===================== -->
 <section id="login">
+  <span class="ver ver-login" data-ver></span>
   <div class="login-card">
     <img src="logo.png" alt="Ingenio Madre Tierra">
     <h1>Calibración de boquillas</h1>
@@ -247,6 +251,7 @@ tr.pend td{background:#fff8ea!important}
       <button data-v="flujos" class="hidden" id="tFlujos">Medidor de flujos</button>
       <button data-v="dash" class="hidden" id="tDash">Dashboard</button>
       <button data-v="rep" class="hidden" id="tRep">Generar reportes</button>
+      <span class="ver" data-ver title="Versión de la app"></span>
     </div></nav>
   </header>
 
@@ -1369,6 +1374,12 @@ function opcionesPct(){
     scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#eceee9'}},x:{grid:{display:false}}}};
 }
 function dibujar(id,cfg){ if(S.charts[id]) S.charts[id].destroy(); if(window.Chart) S.charts[id]=new Chart($(id),cfg); }
+
+/* ================= versión de la app (la genera GitHub en cada actualización) ================= */
+function pintarVersion(v){ if(!v) return; document.querySelectorAll('[data-ver]').forEach(x=>x.textContent=v); }
+pintarVersion(store.get('cal_version'));
+fetch('app-version.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null)
+  .then(j=>{ if(j&&j.version){ pintarVersion(j.version); store.set('cal_version',j.version); } }).catch(()=>{});
 
 /* ================= inicio ================= */
 if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){} }
