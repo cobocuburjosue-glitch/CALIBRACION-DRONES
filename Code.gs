@@ -108,7 +108,38 @@ function doPost(e) {
 
 /* ---------- usuarios y sesión ---------- */
 
+/* ===================== USUARIOS CENTRALES · MDE MT =====================
+   Si ID_USUARIOS_MDE tiene el ID de la hoja "USUARIOS MDE MT", los usuarios
+   salen de ahí (una sola lista para Vuelos, Calibración y Catálogo).
+   Si está vacío, se usa la pestaña USUARIOS de esta hoja, como antes.     */
+const ID_USUARIOS_MDE = '';
+
+function usuariosMDE_(modulo) {
+  const sh = SpreadsheetApp.openById(ID_USUARIOS_MDE).getSheetByName('USUARIOS');
+  if (!sh) throw new Error('La hoja USUARIOS MDE MT no tiene la pestaña USUARIOS.');
+  const v = sh.getDataRange().getValues(), h = v[0].map(norm_), c = k => h.indexOf(norm_(k));
+  const si = (r, k) => c(k) < 0 || norm_(r[c(k)]) !== 'NO';          // vacío = SI
+  return v.slice(1).filter(r => String(r[c('USUARIO')]).trim() && si(r, 'ACTIVO') && si(r, modulo)).map(r => ({
+    usuario: String(r[c('USUARIO')]).trim(),
+    clave: String(r[c('CONTRASEÑA')]).trim(),
+    nombre: String(r[c('NOMBRE')] || r[c('USUARIO')]).trim(),
+    correo: c('CORREO') >= 0 ? String(r[c('CORREO')]).trim() : '',
+    rol: norm_(r[c('ROL')]),
+    botones: c('BOTONES EXTRAS CALIBRACION') >= 0 ? norm_(r[c('BOTONES EXTRAS CALIBRACION')]) : ''
+  }));
+}
+/* ====================================================================== */
+
 function leerUsuarios_() {
+  if (ID_USUARIOS_MDE) return usuariosMDE_('CALIBRACION BOQUILLAS').map(u => {
+    const admin = u.rol === 'ADMINISTRADOR';
+    return {
+      usuario: u.usuario, nombre: u.nombre, pass: u.clave, correo: u.correo,
+      cargo: admin ? 'ADMINISTRADOR' : '', esAdmin: admin,
+      permisos: { flujos: admin || u.botones.indexOf('MEDIDOR') >= 0 || u.botones.indexOf('FLUJO') >= 0,
+                  dashboard: admin || u.botones.indexOf('DASHBOARD') >= 0 }
+    };
+  });
   const sh = getSheet_('USUARIO');
   if (!sh) throw new Error('No existe la pestaña USUARIOS.');
   const v = sh.getDataRange().getValues();
@@ -140,7 +171,7 @@ function publico_(u) {
 function listaUsuarios_() { return leerUsuarios_().map(u => u.nombre); }
 
 function login_(usuario, password) {
-  const u = leerUsuarios_().find(x => norm_(x.nombre) === norm_(usuario));
+  const u = leerUsuarios_().find(x => norm_(x.usuario || x.nombre) === norm_(usuario) || norm_(x.nombre) === norm_(usuario));
   if (!u) return { ok: false, error: 'Usuario no encontrado.' };
   if (!u.pass) return { ok: false, error: 'Este usuario aún no tiene contraseña asignada. Pídala al administrador.' };
   if (String(password).trim() !== u.pass) return { ok: false, error: 'Contraseña incorrecta.' };
