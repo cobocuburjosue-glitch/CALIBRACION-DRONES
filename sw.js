@@ -1,6 +1,6 @@
 /* Service worker: deja la app guardada en el teléfono para abrirla sin internet.
    Los envíos a Google (Apps Script) NO pasan por aquí: esos los maneja la cola de la app. */
-const CACHE = 'calibracion-v1';
+const CACHE = 'calibracion-v2';
 const PRECACHE = [
   './', 'index.html', 'manifest.json', 'logo.png', 'icon-192.png', 'icon-512.png',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js',
