@@ -6,6 +6,7 @@
 <title>Calibración de Boquillas</title>
 <meta name="description" content="Registro de calibración de boquillas de drones — Ingenio Madre Tierra, Malezas y Madurantes">
 <meta name="theme-color" content="#2e7d32">
+<script>/* MDE MT · modo día/noche compartido por las apps (clave mde_tema) */try{if(localStorage.getItem('mde_tema')==='oscuro')document.documentElement.setAttribute('data-tema','oscuro')}catch(e){}</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -247,6 +248,51 @@ tr.pend td{background:#fff8ea!important}
 .seg label{margin:0;display:flex;align-items:center;justify-content:center;height:40px;border-radius:999px;font-size:13px;font-weight:800;color:var(--muted);cursor:pointer;text-align:center;padding:0 8px}
 .seg input{position:absolute;opacity:0;pointer-events:none}
 .seg label:has(input:checked){background:#fff;color:var(--text);box-shadow:0 2px 6px rgba(24,32,26,.08)}
+/* ===================== MODO NOCHE (compartido con MDE MT) ===================== */
+html[data-tema="oscuro"]{
+  color-scheme:dark;
+  --ink:#e6efe7; --ink-2:#c6d4c9; --ink-3:#97a89b;
+  --paper:#0d1310; --card:#161f19; --line:#26332a; --field:#1f2a22;
+  --text:#e6efe7; --muted:#97a89b;
+  --accent:#3b9a41; --accent-dk:#8fd694; --accent-soft:#1d3b22;
+  --ok:#8fd694; --ok-soft:#1b3420; --ok-fan:#4caf50;
+  --bad:#ff8a7a; --bad-soft:#3a1d19; --bad-fan:#d9604f;
+  --warn:#f0c674; --warn-soft:#3a2f17; --warn-line:#a37a2c;
+  --shadow:0 6px 18px rgba(0,0,0,.35);
+}
+html[data-tema="oscuro"] .login-top,
+html[data-tema="oscuro"] header.top{background:#17361b}
+html[data-tema="oscuro"] .login-card form,
+html[data-tema="oscuro"] .modal .box,
+html[data-tema="oscuro"] .tw,
+html[data-tema="oscuro"] .hoy-i,
+html[data-tema="oscuro"] .boq-h .pct.v-ok,
+html[data-tema="oscuro"] .boq-h .pct.v-bad,
+html[data-tema="oscuro"] .adminp .hd button,
+html[data-tema="oscuro"] .adminp input,
+html[data-tema="oscuro"] .photo img,
+html[data-tema="oscuro"] .seg label:has(input:checked){background:var(--card)}
+html[data-tema="oscuro"] input:focus,html[data-tema="oscuro"] select:focus,html[data-tema="oscuro"] textarea:focus,
+html[data-tema="oscuro"] .boq input{background:var(--field)}
+html[data-tema="oscuro"] .btn.ghost,html[data-tema="oscuro"] .photo,html[data-tema="oscuro"] .ed,
+html[data-tema="oscuro"] .cola-item .acc button{background:var(--field)}
+html[data-tema="oscuro"] .tabs-in button.on{background:var(--card);color:var(--accent-dk)}
+html[data-tema="oscuro"] tr:nth-child(even) td{background:#1a241d}
+html[data-tema="oscuro"] tr.pend td{background:#33291a!important}
+html[data-tema="oscuro"] .foot{color:var(--muted)}
+html[data-tema="oscuro"] .toast{background:#26362b}
+html[data-tema="oscuro"] .modal{background:rgba(0,0,0,.65)}
+html[data-tema="oscuro"] .net.off{color:#ffb4a8}
+html[data-tema="oscuro"] .login-card form{box-shadow:0 10px 30px rgba(0,0,0,.5)}
+html[data-tema="oscuro"] .rep-frame{background:#fff}
+html[data-tema="oscuro"] .noz [fill="#dff1d9"]{fill:#1d3b22}
+html[data-tema="oscuro"] .noz [fill="#ffffff"]:not(text){fill:#161f19}
+html[data-tema="oscuro"] .noz [fill="#2f3b33"]{fill:#4f6155}
+html[data-tema="oscuro"] .noz [fill="#5b6b60"]{fill:#71837a}
+html[data-tema="oscuro"] .noz [stroke="#2e7d32"]{stroke:#8fd694}
+@media (max-width:640px){ html[data-tema="oscuro"] nav.tabs{background:var(--card);box-shadow:0 6px 20px rgba(0,0,0,.5)} }
+.tema-login{position:absolute;top:14px;left:16px;z-index:5;width:38px;height:38px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;cursor:pointer}
+.top-in > button.tema-top{width:34px;padding:0;display:grid;place-items:center}
 </style>
 </head>
 <body>
@@ -255,6 +301,7 @@ tr.pend td{background:#fff8ea!important}
 <section id="login">
   <span class="ver ver-login" data-ver></span>
   <div class="login-top">
+    <button class="tema-login" data-tema-btn type="button"></button>
     <img src="logo.png" alt="Ingenio Madre Tierra">
     <h1>Calibración de boquillas</h1>
     <p class="sub">Departamento de Malezas y Madurantes</p>
@@ -287,6 +334,7 @@ tr.pend td{background:#fff8ea!important}
       <div class="who"><b id="saludo">Hola</b><span id="cargo"></span><span class="ver" data-ver></span></div>
       <button class="net" type="button" id="netPill" title="Estado de conexión y registros en cola"><span class="dot"></span><span class="lbl" id="netTxt">Conexión</span><span class="q hidden" id="colaN">0</span></button>
       <button class="inst hidden" type="button" data-install>Instalar app</button>
+      <button class="tema-top" data-tema-btn type="button"></button>
       <button id="bSalir" type="button">Salir</button>
     </div>
     <nav class="tabs"><div class="tabs-in" id="tabs">
@@ -1484,7 +1532,15 @@ function opcionesPct(){
       tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y==null?'—':c.parsed.y.toFixed(2)+'%'}`}}},
     scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#eceee9'}},x:{grid:{display:false}}}};
 }
-function dibujar(id,cfg){ if(S.charts[id]) S.charts[id].destroy(); if(window.Chart) S.charts[id]=new Chart($(id),cfg); }
+function temaGraficas(cfg){
+  const osc = document.documentElement.getAttribute('data-tema') === 'oscuro';
+  if (window.Chart && Chart.defaults){ Chart.defaults.color = osc ? '#c6d4c9' : '#56635a'; Chart.defaults.borderColor = osc ? '#26332a' : '#e3ebe1'; }
+  const sc = cfg && cfg.options && cfg.options.scales;
+  if (sc) Object.values(sc).forEach(a => { if (a && a.grid && a.grid.color) a.grid.color = osc ? '#26332a' : '#eceee9'; });
+  return cfg;
+}
+function dibujar(id,cfg){ if(S.charts[id]) S.charts[id].destroy(); if(window.Chart) S.charts[id]=new Chart($(id),temaGraficas(cfg)); }
+window.addEventListener('mde-tema', () => { try { if (Object.keys(S.charts||{}).length) pintarDash(); } catch(e){} });
 
 /* ================= versión de la app (la genera GitHub en cada actualización) ================= */
 function pintarVersion(v){ if(!v) return; document.querySelectorAll('[data-ver]').forEach(x=>x.textContent=v); }
@@ -1509,6 +1565,43 @@ if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js')
     catch(e){ if(!e.red) S.token=null; }
   }
   cargarUsuarios();
+})();
+</script>
+<script>
+/* ===== MDE MT · modo día / noche =====
+   Una sola preferencia (localStorage "mde_tema") para la portada MDE MT, Calibración,
+   Vuelos Drones y Catálogo de equipos: si se cambia en una, las demás cambian solas. */
+(function(){
+  var K = 'mde_tema';
+  var LUNA = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+  var SOL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';
+  function leer(){ try { return localStorage.getItem(K) === 'oscuro' ? 'oscuro' : 'claro'; } catch(e){ return 'claro'; } }
+  function aplicar(t){
+    var r = document.documentElement;
+    if (t === 'oscuro') r.setAttribute('data-tema', 'oscuro'); else r.removeAttribute('data-tema');
+    var bs = document.querySelectorAll('[data-tema-btn]');
+    for (var i = 0; i < bs.length; i++){
+      var b = bs[i], txt = b.getAttribute('data-tema-btn') === 'texto';
+      b.innerHTML = (t === 'oscuro' ? SOL : LUNA) + (txt ? '<span>' + (t === 'oscuro' ? 'Modo día' : 'Modo noche') + '</span>' : '');
+      b.title = t === 'oscuro' ? 'Cambiar a modo día' : 'Cambiar a modo noche';
+      b.setAttribute('aria-label', b.title);
+    }
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m){ if (!m.getAttribute('data-claro')) m.setAttribute('data-claro', m.content); m.content = t === 'oscuro' ? '#14301a' : m.getAttribute('data-claro'); }
+    try { window.dispatchEvent(new CustomEvent('mde-tema', { detail: t })); } catch(e){}
+  }
+  window.mdeTema = {
+    get: leer,
+    poner: function(t){ try { localStorage.setItem(K, t); } catch(e){} aplicar(t); },
+    alternar: function(){ this.poner(leer() === 'oscuro' ? 'claro' : 'oscuro'); }
+  };
+  document.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('[data-tema-btn]');
+    if (b){ e.preventDefault(); window.mdeTema.alternar(); }
+  });
+  window.addEventListener('storage', function(e){ if (e.key === K) aplicar(e.newValue === 'oscuro' ? 'oscuro' : 'claro'); });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ aplicar(leer()); });
+  else aplicar(leer());
 })();
 </script>
 </body>
