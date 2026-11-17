@@ -6,32 +6,7 @@
 <title>Calibración de Boquillas</title>
 <meta name="description" content="Registro de calibración de boquillas de drones — Ingenio Madre Tierra, Malezas y Madurantes">
 <meta name="theme-color" content="#2e7d32">
-<script>/* MDE MT · modo día/noche compartido (clave mde_tema). Abre en oscuro (Neón al amanecer). */try{if(localStorage.getItem('mde_tema')!=='claro')document.documentElement.setAttribute('data-tema','oscuro')}catch(e){document.documentElement.setAttribute('data-tema','oscuro')}</script>
-<script>
-/* ===== MDE MT · escena de amanecer (cielo, sol, cañaveral y drone) ===== */
-window.amEscena = function(o){
-  o = o || {};
-  var id = 'am' + Math.random().toString(36).slice(2, 7), w = 620, h = 220, canas = '';
-  for (var x = 6; x < w + 20; x += 34){
-    var a = 38 + ((x * 7) % 17);
-    canas += '<path class="am-cana-v" style="animation-delay:' + ((x % 5) * .3) + 's" d="M' + x + ' 224 q -5 -' + a + ' 2 -' + (a + 30) + ' M' + x + ' ' + (224 - a * .9) + ' q 15 -12 27 -6 M' + (x + 2) + ' ' + (224 - a * 1.4) + ' q -15 -10 -26 -2" stroke="var(--am-cana)" stroke-width="4" fill="none" stroke-linecap="round"/>';
-  }
-  var est = '';
-  [[40,20],[120,36],[210,14],[300,28],[90,60],[250,50],[380,22],[160,84]].forEach(function(p){ est += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="1.2" fill="#fff" style="opacity:var(--am-estrella)"/>'; });
-  return '<svg class="am-escena" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs>'
-    + '<linearGradient id="' + id + 'c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--am-cielo1)"/><stop offset=".45" style="stop-color:var(--am-cielo2)"/><stop offset=".78" style="stop-color:var(--am-cielo3)"/><stop offset="1" style="stop-color:var(--am-cielo4)"/></linearGradient>'
-    + '<radialGradient id="' + id + 's"><stop offset="0" style="stop-color:var(--am-sol1)"/><stop offset=".5" style="stop-color:var(--am-sol2)"/><stop offset="1" style="stop-color:var(--am-sol2);stop-opacity:0"/></radialGradient></defs>'
-    + '<rect width="' + w + '" height="' + h + '" fill="url(#' + id + 'c)"/>' + est
-    + '<circle class="am-sol" cx="' + (o.solX || 470) + '" cy="168" r="72" fill="url(#' + id + 's)"/>'
-    + '<path d="M0 170 C 120 140, 240 160, 360 142 S 560 130, 620 146 L620 220 L0 220 Z" style="fill:var(--am-loma)"/>'
-    + '<path d="M0 196 C 160 176, 330 200, 620 178 L620 220 L0 220 Z" style="fill:var(--am-campo)"/>' + canas
-    + '<path d="M0 196 C 160 176, 330 200, 620 178" fill="none" style="stroke:var(--am-linea)" stroke-width="1.5" opacity=".75"/></svg>';
-};
-/* Drone volando con su aspersión. src: ruta de la imagen del drone sin fondo. */
-window.amDron = function(src, color){
-  return '<div class="am-dron am-vuela"><img src="' + src + '" alt=""><svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><polygon class="am-fan" points="50,0 16,60 84,60" fill="' + (color || 'var(--am-menta)') + '" fill-opacity=".32"/></svg></div>';
-};
-</script>
+<script>/* MDE MT · modo día/noche compartido por las apps (clave mde_tema) */try{if(localStorage.getItem('mde_tema')==='oscuro')document.documentElement.setAttribute('data-tema','oscuro')}catch(e){}</script>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -318,68 +293,6 @@ html[data-tema="oscuro"] .noz [stroke="#2e7d32"]{stroke:#8fd694}
 @media (max-width:640px){ html[data-tema="oscuro"] nav.tabs{background:var(--card);box-shadow:0 6px 20px rgba(0,0,0,.5)} }
 .tema-login{position:absolute;top:14px;left:16px;z-index:5;width:38px;height:38px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;cursor:pointer}
 .top-in > button.tema-top{width:34px;padding:0;display:grid;place-items:center}
-html:not([data-tema="oscuro"]) .am-fondo-login{opacity:.32}
-.login-card form{position:relative;z-index:2}
-/* ===================== MDE MT · NEÓN AL AMANECER (común a las 4 apps) ===================== */
-:root{
-  --am-cielo1:#ffe9cf; --am-cielo2:#ffd2a6; --am-cielo3:#f6a877; --am-cielo4:#f08d63;
-  --am-sol1:#fff7dc; --am-sol2:#ffd27a; --am-loma:#e9b48f; --am-campo:#5d8f4f; --am-cana:#2f5a2c; --am-linea:#2e7d32;
-  --am-estrella:0; --am-menta:#2e7d32; --am-ambar:#c46a1c;
-}
-html[data-tema="oscuro"]{
-  --am-cielo1:#151027; --am-cielo2:#4a2440; --am-cielo3:#b85a38; --am-cielo4:#eea55a;
-  --am-sol1:#fff1c4; --am-sol2:#ffcf75; --am-loma:#33182a; --am-campo:#13241a; --am-cana:#0a1910; --am-linea:#34d89c;
-  --am-estrella:.7; --am-menta:#34d89c; --am-ambar:#ff9f5a;
-}
-html[data-tema="oscuro"] body{background-image:radial-gradient(1100px 520px at 88% -8%,rgba(255,159,90,.08),transparent 60%),radial-gradient(900px 460px at 6% 0%,rgba(52,216,156,.05),transparent 60%);background-attachment:fixed}
-.am-escena{position:absolute;inset:0;width:100%;height:100%;display:block}
-.am-dron{position:absolute;left:30%;top:6%;width:42%;max-width:270px;pointer-events:none}
-.am-dron img{display:block;width:100%;filter:drop-shadow(0 10px 14px rgba(0,0,0,.35))}
-.am-dron svg{display:block;width:46%;height:70px;margin:-10px auto 0}
-.am-eyebrow{color:var(--am-ambar);font-weight:800;letter-spacing:.04em;font-size:13px;text-transform:none}
-@media (prefers-reduced-motion: no-preference){
-  .am-vuela{animation:am-vuela 11s ease-in-out infinite alternate}
-  .am-sol{animation:am-sol 14s ease-in-out infinite alternate}
-  .am-fan{transform-box:fill-box;transform-origin:50% 0;animation:am-abrir 1.1s cubic-bezier(.2,.7,.2,1) backwards .3s}
-  .am-sube{animation:am-subir .55s cubic-bezier(.2,.7,.2,1) backwards}
-  .am-sube:nth-child(2){animation-delay:.05s}.am-sube:nth-child(3){animation-delay:.1s}.am-sube:nth-child(4){animation-delay:.15s}.am-sube:nth-child(n+5){animation-delay:.2s}
-  .am-latir{animation:am-latir 1.8s ease-in-out infinite}
-  .am-cana-v{transform-origin:bottom;transform-box:fill-box;animation:am-viento 4s ease-in-out infinite alternate}
-}
-@keyframes am-vuela{from{transform:translate(-26%,6px)}to{transform:translate(22%,-6px)}}
-@keyframes am-sol{to{transform:translateY(-18px)}}
-@keyframes am-abrir{from{transform:scaleX(0)}}
-@keyframes am-subir{from{opacity:0;transform:translateY(14px)}}
-@keyframes am-latir{50%{opacity:.35}}
-@keyframes am-viento{to{transform:skewX(-3deg)}}
-/* ===================== NEÓN AL AMANECER (formal) · Calibración ===================== */
-html[data-tema="oscuro"]{
-  --ink:#e8f3ef; --ink-2:#c6d8d3; --ink-3:#8fa9a4;
-  --paper:#080c0e; --card:#0e1517; --line:#1e3236; --field:#121c1f;
-  --text:#e8f3ef; --muted:#8fa9a4;
-  --accent:#2fcf95; --accent-dk:#34d89c; --accent-ink:#03170f; --accent-soft:#10261f;
-  --ok:#34d89c; --ok-soft:#10261f; --ok-fan:#2fcf95;
-  --bad:#ff6b7f; --bad-soft:#2a1218; --bad-fan:#ff6b7f;
-  --warn:#ffd166; --warn-soft:#2b2414; --warn-line:#a37a2c;
-  --shadow:0 8px 24px rgba(0,0,0,.45);
-}
-html[data-tema="oscuro"] .login-top,html[data-tema="oscuro"] header.top{background:linear-gradient(110deg,#0b1215 0%,#0f191b 55%,#26141f 100%);border-bottom:1px solid #1e3236;box-shadow:0 6px 18px rgba(0,0,0,.4)}
-html[data-tema="oscuro"] .card,html[data-tema="oscuro"] .login-card form,html[data-tema="oscuro"] .modal .box{border:1px solid #1e3236}
-html[data-tema="oscuro"] .card{transition:border-color .2s,box-shadow .2s}
-html[data-tema="oscuro"] .card:hover{border-color:rgba(52,216,156,.4);box-shadow:0 0 22px rgba(52,216,156,.08)}
-html[data-tema="oscuro"] .btn{box-shadow:0 0 16px rgba(52,216,156,.2)}
-html[data-tema="oscuro"] .btn.ghost{background:#121c1f;color:#e8f3ef;border:1px solid #1e3236;box-shadow:none}
-html[data-tema="oscuro"] .tabs-in button.on{background:rgba(52,216,156,.14);color:#34d89c}
-html[data-tema="oscuro"] .noz [fill="#dff1d9"]{fill:#10261f}
-html[data-tema="oscuro"] .noz [stroke="#2e7d32"]{stroke:#34d89c}
-.am-hero-cal{position:relative;display:flex;flex-wrap:wrap;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
-html[data-tema="oscuro"] .am-hero-cal{border:1px solid #1e3236}
-.am-hero-cal .txt{flex:1 1 300px;padding:20px 24px;display:flex;flex-direction:column;justify-content:center;gap:4px}
-.am-hero-cal h2{font-size:clamp(22px,3vw,28px);line-height:1.15;margin:0}
-.am-hero-cal p{margin:0;color:var(--muted);font-weight:600}
-.am-hero-cal .fig{flex:1 1 380px;min-height:170px;position:relative;overflow:hidden}
-.am-hero-cal .am-dron{top:2%;width:38%}
-@media (max-width:640px){ .am-hero-cal .fig{min-height:130px;flex-basis:100%} .am-hero-cal .txt{padding:16px 18px} }
 </style>
 </head>
 <body>
@@ -438,7 +351,6 @@ html[data-tema="oscuro"] .am-hero-cal{border:1px solid #1e3236}
   <main>
     <!-- ---------- CALIBRAR ---------- -->
     <div id="v-calibrar">
-      <section class="am-hero-cal am-sube"><div class="txt"><small class="am-eyebrow" id="amFechaCal">Calibración de boquillas</small><h2>Calibración de boquillas drone</h2><p>Mida cada boquilla y compárela contra la meta de ±5 %. Verde dentro de rango, rojo fuera.</p></div><div class="fig" id="amFigCal"></div></section>
       <div class="next hidden" id="nextVuelo">
         <p><span id="nvTxt">Calibración guardada.</span><small>¿Desea registrar el vuelo de este dron?</small></p>
         <div style="display:flex;gap:8px;align-items:center"><button class="btn" type="button" id="bIrVuelo">Registrar vuelo</button><button class="x" type="button" id="bNoVuelo" aria-label="Cerrar">×</button></div>
@@ -1663,7 +1575,7 @@ if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js')
   var K = 'mde_tema';
   var LUNA = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
   var SOL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';
-  function leer(){ try { return localStorage.getItem(K) === 'claro' ? 'claro' : 'oscuro'; } catch(e){ return 'oscuro'; } }
+  function leer(){ try { return localStorage.getItem(K) === 'oscuro' ? 'oscuro' : 'claro'; } catch(e){ return 'claro'; } }
   function aplicar(t){
     var r = document.documentElement;
     if (t === 'oscuro') r.setAttribute('data-tema', 'oscuro'); else r.removeAttribute('data-tema');
@@ -1675,7 +1587,7 @@ if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js')
       b.setAttribute('aria-label', b.title);
     }
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m){ if (!m.getAttribute('data-claro')) m.setAttribute('data-claro', m.content); m.content = t === 'oscuro' ? '#0b1215' : m.getAttribute('data-claro'); }
+    if (m){ if (!m.getAttribute('data-claro')) m.setAttribute('data-claro', m.content); m.content = t === 'oscuro' ? '#14301a' : m.getAttribute('data-claro'); }
     try { window.dispatchEvent(new CustomEvent('mde-tema', { detail: t })); } catch(e){}
   }
   window.mdeTema = {
@@ -1687,17 +1599,10 @@ if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js')
     var b = e.target.closest && e.target.closest('[data-tema-btn]');
     if (b){ e.preventDefault(); window.mdeTema.alternar(); }
   });
-  window.addEventListener('storage', function(e){ if (e.key === K) aplicar(e.newValue === 'claro' ? 'claro' : 'oscuro'); });
+  window.addEventListener('storage', function(e){ if (e.key === K) aplicar(e.newValue === 'oscuro' ? 'oscuro' : 'claro'); });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ aplicar(leer()); });
   else aplicar(leer());
 })();
-</script>
-<script>
-(function(){ try {
-  var f = document.getElementById('amFigCal'); if (f && window.amEscena) f.innerHTML = amEscena({ solX:520 }) + amDron('dron.webp');
-  var d = document.getElementById('amFechaCal'); if (d) d.textContent = 'Ingenio Madre Tierra · ' + new Intl.DateTimeFormat('es-GT', { weekday:'long', day:'numeric', month:'long', timeZone:'America/Guatemala' }).format(new Date());
-  var lt = document.querySelector('.login-top'); if (lt && window.amEscena){ lt.style.position = 'relative'; lt.style.overflow = 'hidden'; lt.insertAdjacentHTML('afterbegin', amEscena()); var e = lt.querySelector('.am-escena'); e.style.zIndex = 0; e.classList.add('am-fondo-login'); [].forEach.call(lt.children, function(c){ if (c !== e && getComputedStyle(c).position === 'static'){ c.style.position = 'relative'; c.style.zIndex = 1; } }); }
-} catch(e){} })();
 </script>
 </body>
 </html>
