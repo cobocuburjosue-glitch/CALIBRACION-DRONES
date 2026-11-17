@@ -386,9 +386,92 @@ html[data-tema="oscuro"] .am-hero-cal{border:1px solid #1e3236}
 :root{--am-cielo1:#f2f7f0;--am-cielo2:#e6f0e2;--am-cielo3:#d8e9d2;--am-cielo4:#cde3c6;--am-loma:#cfe3c8;--am-campo:#b9d6b0}
 html[data-tema="oscuro"]{--am-cielo1:#0f191b;--am-cielo2:#10211e;--am-cielo3:#122820;--am-cielo4:#143023;--am-loma:#132a20;--am-campo:#16331f}
 html[data-tema="oscuro"] body{background-image:none}
+
+/* ===== Imagen del drone según su modelo (T100 / T50 / T40) ===== */
+.dcard .dc-img{position:relative;margin:4px -4px 8px;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#e6f6ff 0%,#c4e8fb 60%,#9fd6f3 100%);height:96px;display:flex;align-items:center;justify-content:center}
+html[data-tema="oscuro"] .dcard .dc-img{background:linear-gradient(180deg,#123247 0%,#17405a 60%,#1c4d6b 100%)}
+.dcard .dc-img img{height:84px;max-width:88%;object-fit:contain;filter:drop-shadow(0 6px 6px rgba(20,50,70,.25))}
+.mod-dr{position:absolute;left:8px;top:8px;background:rgba(255,255,255,.9);color:#1f4d66;font-weight:900;font-size:11.5px;letter-spacing:.04em;border-radius:999px;padding:2px 9px}
+html[data-tema="oscuro"] .mod-dr{background:rgba(9,25,35,.85);color:#8fd3f5}
+.rep-bts{display:flex;gap:10px;flex-wrap:wrap}.rep-bts .btn{flex:1 1 220px}
+/* ===== Reporte en pantalla (siempre claro, listo para imprimir) ===== */
+#repVista{position:fixed;inset:0;z-index:80;background:#e9efe7;overflow:auto;color:#18201a;font:600 14px/1.5 "Nunito",system-ui,sans-serif}
+.rv-barra{position:sticky;top:0;z-index:2;background:#2e7d32;color:#fff;padding:10px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-radius:0 0 22px 22px;box-shadow:0 6px 18px rgba(46,125,50,.18)}
+.rv-barra b{font-weight:900;font-size:19px}
+.rv-rango{color:#d6ecd7;font-size:13px;margin-right:auto}
+.rv-btn{border:0;border-radius:999px;padding:9px 16px;font:800 14px "Nunito",system-ui,sans-serif;background:rgba(255,255,255,.18);color:#fff;cursor:pointer}
+.rv-btn.prim{background:#fff;color:#1f6b25}
+.rv-ayuda{font-size:12.5px;color:#d6ecd7;flex-basis:100%}
+.rv-hoja{background:#fff;color:#18201a;max-width:960px;margin:22px auto 60px;padding:0 0 30px;border-radius:26px;overflow:hidden;box-shadow:0 10px 30px rgba(24,32,26,.12)}
+.rv-hoja .r-cab{background:#2e7d32;color:#fff;display:flex;gap:18px;align-items:center;padding:24px 36px 30px;border-radius:0 0 30px 30px}
+.rv-hoja .r-cab img{height:70px;filter:brightness(0) invert(1)}
+.rv-hoja .r-cab h1{font-weight:900;font-size:26px;margin:0;line-height:1.15;color:#fff}
+.rv-hoja .r-cab p{margin:2px 0 0;color:#e3f4dd}
+.rv-hoja .r-cab .r-fecha{margin-left:auto;text-align:right;font-size:12.5px;color:#d6ecd7}
+.rv-hoja section{padding:18px 36px 4px}
+.rv-hoja h2{font-weight:900;font-size:20px;margin:0 0 10px;color:#1f6b25;break-after:avoid-page}
+.rv-hoja h2.malo{color:#a93224}
+.rv-hoja .r-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rv-hoja .r-kpis div{padding:10px 12px;background:#f3f6f2;border-radius:16px}
+.rv-hoja .r-kpis div.malo{background:#fbe6e3}
+.rv-hoja .r-kpis b{display:block;font-weight:900;font-size:22px;line-height:1.15}
+.rv-hoja .r-kpis span{font-size:11.5px;color:#56635a;font-weight:800}
+.rv-hoja .r-alerta{background:#fbe6e3;border-left:6px solid #c0392b;border-radius:14px;padding:10px 14px;margin:0 0 10px;color:#7a1f15}
+.rv-hoja .r-bien{background:#e3f4dd;border-left:6px solid #2e7d32;border-radius:14px;padding:10px 14px;color:#1f6b25}
+.rv-hoja .r-tw{overflow-x:auto}
+.rv-hoja table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.rv-hoja th{background:#dff1d9;color:#1f6b25;text-align:left;padding:6px 8px;font-weight:900;position:static;white-space:nowrap}
+.rv-hoja th:first-child{border-radius:12px 0 0 0}.rv-hoja th:last-child{border-radius:0 12px 0 0}
+.rv-hoja td{padding:5px 8px;border-bottom:1px solid #e3ebe1;background:#fff;color:#18201a;white-space:nowrap}
+.rv-hoja td.obs{white-space:normal;min-width:140px}
+.rv-hoja tr:nth-child(even) td{background:#f8faf7}
+.rv-hoja table.t-mal th{background:#f6d5d0;color:#a93224}
+.rv-hoja .rp{color:#a93224;font-weight:900}.rv-hoja .rb{color:#1f6b25;font-weight:800}
+.rv-hoja .r-drones{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.rv-hoja .r-dr{border-radius:18px;padding:10px 12px;background:#eef7ea;break-inside:avoid}
+.rv-hoja .r-dr.bad{background:#fbe6e3}
+.rv-hoja .r-dr h3{margin:0 0 4px;font-size:16px;font-weight:900;display:flex;justify-content:space-between;align-items:center}
+.rv-hoja .r-dr p{margin:1px 0;font-size:12.5px;color:#56635a}.rv-hoja .r-dr p b{color:#18201a}
+.rv-hoja .r-dr .dc-img{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,#e6f6ff 0%,#c4e8fb 60%,#9fd6f3 100%);height:84px;display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+.rv-hoja .r-dr .dc-img img{height:72px;max-width:88%;object-fit:contain}
+.rv-hoja .r-dr .mod-dr{background:rgba(255,255,255,.9);color:#1f4d66}
+.rv-hoja .est{border-radius:999px;padding:1px 8px;font-size:11px;font-weight:900;background:#2e7d32;color:#fff}.rv-hoja .est.bad{background:#c0392b}
+.rv-hoja img.r-graf{width:100%;height:auto;display:block;margin:6px 0}
+.rv-hoja .r-dos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rv-hoja .r-vacio{color:#56635a;font-style:italic}
+.rv-hoja .r-pie{padding:16px 36px 0;font-size:12px;color:#56635a}
+@media screen and (max-width:720px){
+  .rv-hoja .r-cab{flex-wrap:wrap;padding:18px}.rv-hoja .r-cab .r-fecha{margin-left:0;text-align:left}
+  .rv-hoja section{padding:14px 16px 4px}.rv-hoja .r-kpis{grid-template-columns:repeat(2,1fr)}.rv-hoja .r-dos{grid-template-columns:1fr}
+  .rv-barra{position:static}.rv-hoja{margin-top:12px}
+}
+html[data-tema="oscuro"] #repVista .rv-hoja th{background:#dff1d9;color:#1f6b25;border:0}
+html[data-tema="oscuro"] #repVista .rv-hoja table.t-mal th{background:#f6d5d0;color:#a93224}
+html[data-tema="oscuro"] #repVista .rv-hoja td{background:#fff;color:#18201a;border-color:#e3ebe1}
+html[data-tema="oscuro"] #repVista .rv-hoja tr:nth-child(even) td{background:#f8faf7}
+html[data-tema="oscuro"] #repVista .rv-hoja .rp{color:#a93224}html[data-tema="oscuro"] #repVista .rv-hoja .rb{color:#1f6b25}
+html[data-tema="oscuro"] #repVista .rv-hoja h2{color:#1f6b25}html[data-tema="oscuro"] #repVista .rv-hoja h2.malo{color:#a93224}
+html[data-tema="oscuro"] #repVista .rv-hoja .r-cab h1{color:#fff}
+@media print{
+  body.con-rv > *:not(#repVista){display:none!important}
+  body.con-rv{background:#fff}
+  #repVista{position:static;background:#fff;overflow:visible}
+  .rv-barra{display:none!important}
+  .rv-hoja{box-shadow:none;margin:0;max-width:none;border-radius:0}
+  .rv-hoja td{white-space:normal}
+  .rv-hoja section{break-inside:avoid-page}.rv-hoja section.r-larga{break-inside:auto}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4 landscape;margin:8mm}
+}
 </style>
 </head>
 <body>
+<div id="repVista" class="hidden" role="dialog" aria-modal="true" aria-label="Reporte de calibración">
+  <div class="rv-barra"><b>Reporte</b><span class="rv-rango" id="rvRango"></span>
+    <button type="button" class="rv-btn prim" id="rvImprimir">Imprimir o guardar PDF</button><button type="button" class="rv-btn" id="rvCerrar">Cerrar</button>
+    <span class="rv-ayuda">En la ventana de impresión elige “Guardar como PDF”.</span></div>
+  <div class="rv-hoja" id="rvHoja"></div>
+</div>
 
 <!-- ===================== LOGIN ===================== -->
 <section id="login">
@@ -695,7 +778,7 @@ html[data-tema="oscuro"] body{background-image:none}
         <div class="filters">
           <div class="field"><label for="rDesde">Fecha inicial</label><input id="rDesde" type="date"></div>
           <div class="field"><label for="rHasta">Fecha final</label><input id="rHasta" type="date"></div>
-          <div class="field" style="grid-column:span 2"><button class="btn" type="button" id="bReporte">Generar y enviar a mi correo</button></div>
+          <div class="field rep-bts" style="grid-column:span 2"><button class="btn" type="button" id="bVerRep">Ver reporte en pantalla</button><button class="btn ghost" type="button" id="bReporte">Generar y enviar a mi correo</button></div>
         </div>
         <div class="field" style="margin-top:12px"><label>Formato del reporte</label>
           <div class="seg">
@@ -1378,6 +1461,102 @@ $('bReporte').onclick=async()=>{
   b.disabled=false; b.textContent='Generar y enviar a mi correo';
 };
 
+/* ================= modelo del drone (para la imagen) ================= */
+function modeloDron(n){
+  const m = String(n || '').toUpperCase().replace(/[\s_-]+/g, '');
+  if (/T100|T10\d/.test(m)) return 'T100';
+  const r = m.match(/T(70|60|50|40|30|25|20|16|10)/); return r ? 'T' + r[1] : '';
+}
+const IMG_MODELO = {T50:'dron.webp', T100:'dron-t100.webp', T40:'dron-t40.webp', T30:'dron-t30.webp'};
+function imgModelo(mod){ return IMG_MODELO[mod] || 'dron-generico.svg'; }
+
+/* ================= reporte en pantalla (como en Vuelos) ================= */
+const fechaTxt = iso => iso ? iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) : '';
+function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
+  const tol=S.cat.flujos.variacion, okR=r=>/DENTRO/i.test(r.estado||'');
+  const orden=(a,b)=>String(a).localeCompare(String(b),'es',{numeric:true});
+  const key=r=>r.iso+'|'+String(r.descarga).replace(/\D/g,'').padStart(4,'0');
+  const fuera=regs.filter(r=>!okR(r)).sort((a,b)=>key(a).localeCompare(key(b)));
+  const ult={}; regs.forEach(r=>{ if(!ult[r.dron]||key(r)>=key(ult[r.dron])) ult[r.dron]=r; });
+  const last=Object.values(ult).sort((a,b)=>orden(a.dron,b.dron));
+  const dronesFuera=last.filter(r=>!okR(r));
+  const ok=regs.length-fuera.length;
+  const vg=regs.filter(r=>r.varGeneral!=null), vgProm=vg.length?vg.reduce((s,r)=>s+Math.abs(r.varGeneral),0)/vg.length:null;
+  const cv=x=>x==null||isNaN(x)?'':Math.abs(x)<=tol?'rb':'rp';
+  const fila=r=>{ const mod=modeloDron(r.dron); return `<tr><td>${esc(r.fecha)}</td><td>${esc(r.descarga)}</td><td><b>${esc(r.dron)}</b>${mod?` <small>(${mod})</small>`:''}</td><td>${esc(r.labor)}</td><td>${esc(r.supervisor)}</td>
+    <td>${f(r.b1)}</td><td>${f(r.b2)}</td><td class="${cv(r.varB1)}">${pct(r.varB1)}</td><td class="${cv(r.varB2)}">${pct(r.varB2)}</td><td class="${cv(r.varGeneral)}">${pct(r.varGeneral)}</td>
+    <td>${f(r.min)} – ${f(r.max)}</td><td>${okR(r)?'<span class="est">OK</span>':'<span class="est bad">FUERA</span>'}</td><td class="obs">${esc(r.observaciones)}</td></tr>`; };
+  const cabT='<thead><tr><th>Fecha</th><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>B1 L/min</th><th>B2 L/min</th><th>Var B1</th><th>Var B2</th><th>Var gral.</th><th>Rango por boquilla</th><th>Estado</th><th>Observaciones</th></tr></thead>';
+  // qué boquilla salió y hacia dónde
+  const motivo=r=>{ const m=[]; [['Boquilla 1',r.b1,r.varB1],['Boquilla 2',r.b2,r.varB2]].forEach(([n,q,v])=>{ if(v!=null&&Math.abs(v)>tol) m.push(`${n} ${v>0?'arriba':'abajo'} del rango (${pct(v)})`); }); return m.join(' · ')||'Fuera de rango'; };
+  const vsFuera=vs.filter(v=>v.variacion!=null&&Math.abs(v.variacion)>tol);
+  const H=new Date();
+  let h=`<div class="r-cab"><img src="logo.png" alt=""><div><h1>Reporte de calibración de boquillas drone</h1><p>Del ${fechaTxt(desde)} al ${fechaTxt(hasta)} · meta ±${(tol*100).toFixed(0)} % por boquilla</p></div>
+    <div class="r-fecha">Generado el ${H.toLocaleDateString('es-GT')} ${H.toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit'})}<br>por ${esc(S.user.nombre||S.user.usuario||'')}</div></div>`;
+  if(!regs.length && !vs.length) return h+'<section><p class="r-vacio">No hay calibraciones ni vuelos en esas fechas. Cambia las fechas y vuelve a tocar “Ver reporte en pantalla”.</p></section>';
+  h+=`<section><div class="r-kpis">
+    <div><b>${regs.length}</b><span>Calibraciones · ${new Set(regs.map(r=>r.dron)).size} drones</span></div>
+    <div><b>${regs.length?Math.round(ok/regs.length*100)+'%':'—'}</b><span>Dentro de rango (${ok} de ${regs.length})</span></div>
+    <div class="${fuera.length?'malo':''}"><b class="${fuera.length?'rp':''}">${fuera.length}</b><span>Calibraciones fuera de rango</span></div>
+    <div class="${dronesFuera.length?'malo':''}"><b class="${dronesFuera.length?'rp':''}">${dronesFuera.length}</b><span>Drones fuera (última calibración)</span></div></div>
+    ${vgProm!=null?`<p style="margin:8px 0 0;color:#56635a">Variación general promedio: <b style="color:#18201a">${(vgProm*100).toFixed(2)} %</b> (valor absoluto).</p>`:''}</section>`;
+  // FUERA DE RANGO
+  h+=`<section class="r-larga"><h2 class="${fuera.length?'malo':''}">Salieron del rango en la calibración (${fuera.length})</h2>`;
+  if(fuera.length){
+    h+=`<div class="r-alerta"><b>${fuera.length} ${fuera.length>1?'calibraciones':'calibración'} fuera de ±${(tol*100).toFixed(0)} %.</b> ${dronesFuera.length?`Siguen fuera en su última calibración: <b>${dronesFuera.map(r=>esc(r.dron)).join(', ')}</b> — recalibrar antes de volar.`:'Todos los drones quedaron dentro de rango en su última calibración.'}</div>
+      <div class="r-tw"><table class="t-mal"><thead><tr><th>Fecha</th><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>Qué salió</th><th>Rango por boquilla</th><th>B1</th><th>B2</th><th>Observaciones</th></tr></thead><tbody>${
+      fuera.map(r=>`<tr><td>${esc(r.fecha)}</td><td>${esc(r.descarga)}</td><td><b>${esc(r.dron)}</b></td><td>${esc(r.labor)}</td><td>${esc(r.supervisor)}</td><td class="rp" style="white-space:normal">${motivo(r)}</td><td>${f(r.min)} – ${f(r.max)}</td><td>${f(r.b1)}</td><td>${f(r.b2)}</td><td class="obs">${esc(r.observaciones)}</td></tr>`).join('')}</tbody></table></div>`;
+  } else h+=`<div class="r-bien"><b>Ninguna calibración salió del rango</b> en estas fechas. Todas las boquillas quedaron dentro de ±${(tol*100).toFixed(0)} %.</div>`;
+  h+='</section>';
+  // ESTADO POR DRON
+  if(last.length) h+=`<section><h2>Estado por dron <small style="font-size:13px;color:#56635a">última calibración</small></h2><div class="r-drones">${last.map(r=>{ const o=okR(r), mod=modeloDron(r.dron); return `<div class="r-dr ${o?'':'bad'}">
+      <div class="dc-img"><span class="mod-dr">${mod||'Drone'}</span><img src="${imgModelo(mod)}" alt="" onerror="this.onerror=null;this.src='dron-generico.svg'"></div>
+      <h3>${esc(r.dron)} <span class="est ${o?'':'bad'}">${o?'OK':'FUERA'}</span></h3>
+      <p>${esc(r.fecha)} · ${esc(r.descarga)} · ${esc(r.labor||'')}</p>
+      <p>B1 <b>${f(r.b1)}</b> (${pct(r.varB1,1)}) · B2 <b>${f(r.b2)}</b> (${pct(r.varB2,1)})</p><p>Rango ${f(r.min)} – ${f(r.max)} L/min</p></div>`; }).join('')}</div></section>`;
+  // GRÁFICAS
+  if(graf){ const im=(k)=>graf[k]?`<img class="r-graf" src="data:image/png;base64,${graf[k]}" alt="">`:'';
+    if(graf.boquillas||graf.tiempo) h+=`<section><h2>Gráficas de calibración</h2>${im('boquillas')}${im('tiempo')}</section>`; }
+  // TODAS LAS CALIBRACIONES
+  h+=`<section class="r-larga"><h2>Todas las calibraciones (${regs.length})</h2>${regs.length?`<div class="r-tw"><table>${cabT}<tbody>${regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).map(fila).join('')}</tbody></table></div>`:'<p class="r-vacio">Sin calibraciones en el período.</p>'}</section>`;
+  // VUELOS
+  if(vs.length){
+    const vf=v=>`<tr><td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td><td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${cv(v.variacion)}">${pct(v.variacion)}</td><td class="${cv(v.varCaudal)}">${pct(v.varCaudal)}</td><td class="obs">${esc(v.observaciones)}</td></tr>`;
+    const cabV='<thead><tr><th>Fecha</th><th>Dron</th><th>Labor</th><th>Área real</th><th>Aplicados</th><th>L/ha teó.</th><th>L/ha real</th><th>% Var</th><th>% Var caudal</th><th>Observaciones</th></tr></thead>';
+    h+=`<section class="r-larga"><h2 class="${vsFuera.length?'malo':''}">Vuelos fuera de rango L/ha (${vsFuera.length} de ${vs.length})</h2>${vsFuera.length?`<div class="r-tw"><table class="t-mal">${cabV}<tbody>${vsFuera.map(vf).join('')}</tbody></table></div>`:'<div class="r-bien">Todos los vuelos quedaron dentro del rango de L/ha.</div>'}
+      ${graf&&(graf.lha||graf.vuelos)?`${graf.lha?`<img class="r-graf" src="data:image/png;base64,${graf.lha}" alt="">`:''}${graf.vuelos?`<img class="r-graf" src="data:image/png;base64,${graf.vuelos}" alt="">`:''}`:''}</section>`;
+  }
+  if(comoLeer) h+=`<section><h2>Cómo leerlo</h2><p style="margin:0;color:#2f3b33">Cada boquilla debe entregar la mitad del caudal teórico (L/ha × velocidad × ancho de faja × 60 ÷ 10 000) con una tolerancia de ±${(tol*100).toFixed(0)} %. Si una boquilla queda por arriba, aplica de más; si queda por abajo, aplica de menos. La sección roja lista las calibraciones que salieron del rango y qué boquilla falló; “Estado por dron” muestra cómo quedó cada drone en su última calibración.</p></section>`;
+  h+=`<div class="r-pie">Ingenio Madre Tierra · Departamento de Malezas y Madurantes · Calibración de boquillas drone</div>`;
+  return h;
+}
+let rvTitulo='Reporte calibración';
+$('bVerRep').onclick=async()=>{
+  const d=$('rDesde').value, h=$('rHasta').value;
+  if(!d||!h) return toast('Seleccione fecha inicial y final',1);
+  if(d>h) return toast('La fecha inicial es mayor que la final',1);
+  const b=$('bVerRep'); b.disabled=true; b.innerHTML='<span class="spin"></span>Armando el reporte…';
+  try{
+    let j; try{ j=await api('dashboard',{}, {timeout:60000}); guardarCache('dash',{registros:j.registros,vuelos:j.vuelos}); }
+    catch(e){ const c=leerCache('dash'); if(!c) throw e; j=c; toast('Sin conexión: se usan los últimos datos descargados',1); }
+    const iso=x=>toISO(x.fecha);
+    const regs=(j.registros||[]).map(r=>Object.assign(r,{iso:iso(r)})).filter(r=>r.iso>=d&&r.iso<=h);
+    const vs=(j.vuelos||[]).map(v=>Object.assign(v,{iso:iso(v)})).filter(v=>v.iso>=d&&v.iso<=h);
+    let graf=null; try{ graf=await graficasReporte(d,h); }catch(e){}
+    const comoLeer=(document.querySelector('input[name=rFormato]:checked')||{}).value==='detalle';
+    $('rvHoja').innerHTML=armarReporteCal(d,h,regs,vs,graf,comoLeer);
+    $('rvRango').textContent=`Del ${fechaTxt(d)} al ${fechaTxt(h)}`;
+    rvTitulo='Reporte calibración '+fechaTxt(d).replace(/\//g,'-')+' al '+fechaTxt(h).replace(/\//g,'-')+' - Creado por Cobo Cubur';
+    $('repVista').classList.remove('hidden'); document.body.classList.add('con-rv'); $('repVista').scrollTop=0;
+  }catch(e){ toast(e.message,1) }
+  b.disabled=false; b.textContent='Ver reporte en pantalla';
+};
+$('rvCerrar').onclick=()=>{ $('repVista').classList.add('hidden'); document.body.classList.remove('con-rv'); };
+$('rvImprimir').onclick=()=>{
+  if(window.AppAndroid&&AppAndroid.imprimir){ AppAndroid.imprimir(rvTitulo); return; }
+  const antes=document.title; document.title=rvTitulo; window.print(); setTimeout(()=>{ document.title=antes; },1000);
+};
+
 /* ================= instalar app (APK) ================= */
 const enApk = /CalibracionMTApp/.test(navigator.userAgent);
 const enAndroid = /Android/i.test(navigator.userAgent);
@@ -1424,7 +1603,8 @@ function pintarDash(){
   const ult={}; rows.forEach(r=>{ if(!ult[r.dron]||key(r)>=key(ult[r.dron])) ult[r.dron]=r; });
   const last=Object.values(ult).sort((a,b)=>a.dron.localeCompare(b.dron,'es',{numeric:true}));
   $('kFuera').textContent=last.filter(r=>!/DENTRO/i.test(r.estado)).length;
-  $('dCards').innerHTML = last.length ? last.map(r=>{ const okk=/DENTRO/i.test(r.estado); return `<div class="dcard ${okk?'':'bad'}">
+  $('dCards').innerHTML = last.length ? last.map(r=>{ const okk=/DENTRO/i.test(r.estado); const mod=modeloDron(r.dron); return `<div class="dcard ${okk?'':'bad'}">
+      <div class="dc-img"><span class="mod-dr">${mod||'Drone'}</span><img src="${imgModelo(mod)}" alt="Drone ${mod}" onerror="this.onerror=null;this.src='dron-generico.svg'"></div>
       <h3>${esc(r.dron)} ${pill(r.estado)}</h3>
       <p>${esc(r.fecha)} · ${esc(r.descarga)} · ${esc(r.labor||'')}</p>
       <p>B1 <b>${f(r.b1)}</b> (${pct(r.varB1,1)}) · B2 <b>${f(r.b2)}</b> (${pct(r.varB2,1)})</p>
