@@ -9,7 +9,7 @@
 <script>/* MDE MT · modo día/noche compartido (clave mde_tema). Abre en oscuro (Neón al amanecer). */try{if(localStorage.getItem('mde_tema')!=='claro')document.documentElement.setAttribute('data-tema','oscuro')}catch(e){document.documentElement.setAttribute('data-tema','oscuro')}</script>
 <script>
 /* ===== MDE MT · escena de amanecer (cielo, sol, cañaveral y drone) ===== */
-window.amEscena = function(o){
+window.amEscena = function(o){ return ''; /* fondo de amanecer quitado */
   o = o || {};
   var id = 'am' + Math.random().toString(36).slice(2, 7), w = 620, h = 220, canas = '';
   for (var x = 6; x < w + 20; x += 34){
@@ -380,6 +380,12 @@ html[data-tema="oscuro"] .am-hero-cal{border:1px solid #1e3236}
 .am-hero-cal .fig{flex:1 1 380px;min-height:170px;position:relative;overflow:hidden}
 .am-hero-cal .am-dron{top:2%;width:38%}
 @media (max-width:640px){ .am-hero-cal .fig{min-height:130px;flex-basis:100%} .am-hero-cal .txt{padding:16px 18px} }
+/* ===== Sin fondo de amanecer (pedido de Cobo): encabezados solo con texto, ilustraciones en fondo neutro ===== */
+.hero-fig,.am-hero .fig,.am-hero-cal .fig,.am-hero-eq .fig{display:none!important}
+.am-sol,.am-escena{display:none!important}
+:root{--am-cielo1:#f2f7f0;--am-cielo2:#e6f0e2;--am-cielo3:#d8e9d2;--am-cielo4:#cde3c6;--am-loma:#cfe3c8;--am-campo:#b9d6b0}
+html[data-tema="oscuro"]{--am-cielo1:#0f191b;--am-cielo2:#10211e;--am-cielo3:#122820;--am-cielo4:#143023;--am-loma:#132a20;--am-campo:#16331f}
+html[data-tema="oscuro"] body{background-image:none}
 </style>
 </head>
 <body>
