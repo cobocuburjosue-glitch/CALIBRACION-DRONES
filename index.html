@@ -464,6 +464,7 @@ html[data-tema="oscuro"] #repVista .rv-hoja .r-cab h1{color:#fff}
   @page{size:A4 landscape;margin:8mm}
 }
 </style>
+<script src="../MDE-MT/config.js"></script>
 </head>
 <body>
 <div id="repVista" class="hidden" role="dialog" aria-modal="true" aria-label="Reporte de calibración">
@@ -1040,6 +1041,7 @@ $('fLogin').addEventListener('submit', async ev=>{
     const j = await api('login',{usuario:$('lUser').value,password:$('lPass').value});
     S.token=j.token; store.set('cal_token',j.token); store.set('cal_user',j.usuario.nombre);
     guardarCache('sesion',{usuario:j.usuario,catalogos:j.catalogos});
+    if(window.mdeRegistrarAcceso) mdeRegistrarAcceso('calibracion',$('lUser').value,$('lPass').value);
     entrar(j.usuario,j.catalogos); sincronizar();
   }catch(e){ $('lErr').textContent=e.message }
   b.disabled=false; b.textContent='Ingresar';
