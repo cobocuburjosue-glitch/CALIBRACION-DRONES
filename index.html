@@ -387,6 +387,48 @@ html[data-tema="oscuro"] .am-hero-cal{border:1px solid #1e3236}
 html[data-tema="oscuro"]{--am-cielo1:#0f191b;--am-cielo2:#10211e;--am-cielo3:#122820;--am-cielo4:#143023;--am-loma:#132a20;--am-campo:#16331f}
 html[data-tema="oscuro"] body{background-image:none}
 
+
+/* ===== Portada del reporte ===== */
+.rv-hoja .r-portada{background:linear-gradient(160deg,#2e7d32 0%,#1f6b25 55%,#174f1c 100%);color:#fff;padding:34px 40px 30px;border-radius:0 0 34px 34px;position:relative;overflow:hidden}
+.rv-hoja .r-portada::after{content:"";position:absolute;right:-90px;top:-90px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.06)}
+.rv-hoja .rp-top{display:flex;align-items:center;gap:14px}
+.rv-hoja .rp-logo{height:64px;filter:brightness(0) invert(1)}
+.rv-hoja .rp-top small{letter-spacing:.14em;font-weight:900;font-size:11.5px;color:#d6ecd7}
+.rv-hoja .r-portada h1{font-size:40px;line-height:1.08;font-weight:900;margin:26px 0 8px;color:#fff}
+.rv-hoja .rp-per{font-size:16px;color:#e3f4dd;margin:0}
+.rv-hoja .rp-per b{color:#fff}
+.rv-hoja .rp-drones{display:flex;gap:14px;justify-content:center;align-items:flex-end;margin:26px 0 18px;padding:18px 10px 8px;border-radius:24px;background:linear-gradient(180deg,#e6f6ff 0%,#c4e8fb 60%,#9fd6f3 100%)}
+.rv-hoja .rp-drones figure{margin:0;text-align:center;flex:1 1 0;max-width:260px}
+.rv-hoja .rp-drones img{width:100%;height:130px;object-fit:contain;filter:drop-shadow(0 8px 8px rgba(20,50,70,.25))}
+.rv-hoja .rp-drones figcaption{display:inline-block;margin-top:4px;background:rgba(255,255,255,.9);color:#1f4d66;font-weight:900;font-size:13px;border-radius:999px;padding:2px 12px}
+.rv-hoja .rp-res{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.rv-hoja .rp-res div{background:rgba(255,255,255,.12);border-radius:18px;padding:10px 12px}
+.rv-hoja .rp-res div.mal{background:rgba(255,140,120,.28)}
+.rv-hoja .rp-res b{display:block;font-size:26px;font-weight:900;line-height:1.1;color:#fff}
+.rv-hoja .rp-res span{font-size:12px;font-weight:800;color:#d6ecd7}
+.rv-hoja .rp-gen{margin:16px 0 0;font-size:12.5px;color:#d6ecd7}
+.rv-hoja .rp-gen b{color:#fff}
+.rv-hoja .r-cab{display:none!important}
+/* ===== Fotos de calibración ===== */
+.rv-hoja .r-fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.rv-hoja .r-foto{display:block;text-decoration:none;color:#18201a;background:#f3f6f2;border-radius:18px;overflow:hidden;break-inside:avoid;padding-bottom:8px}
+.rv-hoja .r-foto img{width:100%;height:170px;object-fit:cover;display:block;background:#dfe7dd}
+.rv-hoja .r-foto b{display:flex;justify-content:space-between;gap:6px;align-items:center;padding:8px 10px 0;font-size:14px}
+.rv-hoja .r-foto small{display:block;padding:2px 10px 0;color:#56635a;font-size:12px}
+.rv-hoja .r-foto .rf-obs{font-style:italic}
+.rv-hoja .r-foto .rf-sin{display:none}
+.rv-hoja .r-foto.sin img{display:none}
+.rv-hoja .r-foto.sin .rf-sin{display:flex;height:170px;align-items:center;justify-content:center;text-align:center;padding:10px;color:#56635a;font-size:12.5px;background:#e9efe7}
+@media screen and (max-width:720px){
+  .rv-hoja .r-portada{padding:22px 18px}.rv-hoja .r-portada h1{font-size:28px}
+  .rv-hoja .rp-res{grid-template-columns:repeat(3,1fr)}.rv-hoja .rp-drones img{height:80px}
+}
+@media print{
+  .rv-hoja .r-portada{min-height:180mm;border-radius:0;display:flex;flex-direction:column;justify-content:center;break-after:page;page-break-after:always}
+  .rv-hoja .r-portada h1{font-size:46px}
+  .rv-hoja .rp-drones img{height:170px}
+  .rv-hoja .r-foto img{height:150px}
+}
 /* ===== Imagen del drone según su modelo (T100 / T50 / T40) ===== */
 .dcard .dc-img{position:relative;margin:4px -4px 8px;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#e6f6ff 0%,#c4e8fb 60%,#9fd6f3 100%);height:96px;display:flex;align-items:center;justify-content:center}
 html[data-tema="oscuro"] .dcard .dc-img{background:linear-gradient(180deg,#123247 0%,#17405a 60%,#1c4d6b 100%)}
@@ -396,12 +438,13 @@ html[data-tema="oscuro"] .mod-dr{background:rgba(9,25,35,.85);color:#8fd3f5}
 .rep-bts{display:flex;gap:10px;flex-wrap:wrap}.rep-bts .btn{flex:1 1 220px}
 /* ===== Reporte en pantalla (siempre claro, listo para imprimir) ===== */
 #repVista{position:fixed;inset:0;z-index:80;background:#e9efe7;overflow:auto;color:#18201a;font:600 14px/1.5 "Nunito",system-ui,sans-serif}
-.rv-barra{position:sticky;top:0;z-index:2;background:#2e7d32;color:#fff;padding:10px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-radius:0 0 22px 22px;box-shadow:0 6px 18px rgba(46,125,50,.18)}
+.rv-barra{position:static;z-index:2;background:#2e7d32;color:#fff;padding:10px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-radius:0 0 22px 22px;box-shadow:0 6px 18px rgba(46,125,50,.18)}
 .rv-barra b{font-weight:900;font-size:19px}
 .rv-rango{color:#d6ecd7;font-size:13px;margin-right:auto}
 .rv-btn{border:0;border-radius:999px;padding:9px 16px;font:800 14px "Nunito",system-ui,sans-serif;background:rgba(255,255,255,.18);color:#fff;cursor:pointer}
 .rv-btn.prim{background:#fff;color:#1f6b25}
-.rv-ayuda{font-size:12.5px;color:#d6ecd7;flex-basis:100%}
+.rv-ayuda{font-size:12.5px;color:#d6ecd7;flex-basis:100%;margin-top:-4px}
+.rv-barra .rv-btn{flex:none}
 .rv-hoja{background:#fff;color:#18201a;max-width:960px;margin:22px auto 60px;padding:0 0 30px;border-radius:26px;overflow:hidden;box-shadow:0 10px 30px rgba(24,32,26,.12)}
 .rv-hoja .r-cab{background:#2e7d32;color:#fff;display:flex;gap:18px;align-items:center;padding:24px 36px 30px;border-radius:0 0 30px 30px}
 .rv-hoja .r-cab img{height:70px;filter:brightness(0) invert(1)}
@@ -423,7 +466,7 @@ html[data-tema="oscuro"] .mod-dr{background:rgba(9,25,35,.85);color:#8fd3f5}
 .rv-hoja th{background:#dff1d9;color:#1f6b25;text-align:left;padding:6px 8px;font-weight:900;position:static;white-space:nowrap}
 .rv-hoja th:first-child{border-radius:12px 0 0 0}.rv-hoja th:last-child{border-radius:0 12px 0 0}
 .rv-hoja td{padding:5px 8px;border-bottom:1px solid #e3ebe1;background:#fff;color:#18201a;white-space:nowrap}
-.rv-hoja td.obs{white-space:normal;min-width:140px}
+.rv-hoja td.obs{white-space:normal;min-width:240px;max-width:360px}
 .rv-hoja tr:nth-child(even) td{background:#f8faf7}
 .rv-hoja table.t-mal th{background:#f6d5d0;color:#a93224}
 .rv-hoja .rp{color:#a93224;font-weight:900}.rv-hoja .rb{color:#1f6b25;font-weight:800}
@@ -1454,7 +1497,7 @@ async function graficasReporte(desde,hasta){
   }
   // 2) variación general en el tiempo
   const fechas=[...new Set(regs.map(r=>r.iso))].sort(), dr=[...new Set(regs.map(r=>r.dron))].sort(orden);
-  if(fechas.length){
+  if(false && fechas.length){   // quitada a pedido: solo se deja la variación de la última calibración
     out.tiempo=pngGrafica({type:'line',data:{labels:fechas.map(x=>x.slice(8,10)+'/'+x.slice(5,7)),datasets:dr.map((d,i)=>({
       label:d,borderColor:pal[i%pal.length],backgroundColor:pal[i%pal.length],tension:.25,spanGaps:true,pointRadius:4,
       data:fechas.map(fe=>{const rr=regs.filter(r=>r.dron===d&&r.iso===fe&&r.varGeneral!=null); return rr.length?+(avg(rr.map(r=>r.varGeneral))*100).toFixed(2):null;})}))},options:optPct()},
@@ -1525,8 +1568,18 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
   const motivo=r=>{ const m=[]; [['Boquilla 1',r.b1,r.varB1],['Boquilla 2',r.b2,r.varB2]].forEach(([n,q,v])=>{ if(v!=null&&Math.abs(v)>tol) m.push(`${n} ${v>0?'arriba':'abajo'} del rango (${pct(v)})`); }); return m.join(' · ')||'Fuera de rango'; };
   const vsFuera=vs.filter(v=>v.variacion!=null&&Math.abs(v.variacion)>tol);
   const H=new Date();
-  let h=`<div class="r-cab"><img src="logo.png" alt=""><div><h1>Reporte de calibración de boquillas drone</h1><p>Del ${fechaTxt(desde)} al ${fechaTxt(hasta)} · meta ±${(tol*100).toFixed(0)} % por boquilla</p></div>
-    <div class="r-fecha">Generado el ${H.toLocaleDateString('es-GT')} ${H.toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit'})}<br>por ${esc(S.user.nombre||S.user.usuario||'')}</div></div>`;
+  const modelos=[...new Set(regs.map(r=>modeloDron(r.dron)).filter(Boolean))].sort((a,b)=>({T100:0,T50:1,T40:2,T30:3}[a]??9)-({T100:0,T50:1,T40:2,T30:3}[b]??9));
+  const pctOk=regs.length?Math.round(ok/regs.length*100):null;
+  let h=`<div class="r-portada">
+    <div class="rp-top"><img class="rp-logo" src="logo.png" alt="Ingenio Madre Tierra"><div><small>INGENIO MADRE TIERRA · DEPARTAMENTO DE MALEZAS Y MADURANTES</small></div></div>
+    <h1>Reporte de calibración<br>de boquillas drone</h1>
+    <p class="rp-per">Del <b>${fechaTxt(desde)}</b> al <b>${fechaTxt(hasta)}</b> · meta ±${(tol*100).toFixed(0)} % por boquilla</p>
+    <div class="rp-drones">${(modelos.length?modelos:['T50']).map(m=>`<figure><img src="${imgModelo(m)}" alt="" onerror="this.onerror=null;this.src='dron-generico.svg'"><figcaption>${m}</figcaption></figure>`).join('')}</div>
+    <div class="rp-res"><div><b>${regs.length}</b><span>calibraciones</span></div><div><b>${new Set(regs.map(r=>r.dron)).size}</b><span>drones</span></div><div><b>${pctOk==null?'—':pctOk+'%'}</b><span>dentro de rango</span></div><div class="${fuera.length?'mal':''}"><b>${fuera.length}</b><span>fuera de rango</span></div><div><b>${vs.length}</b><span>vuelos</span></div></div>
+    <p class="rp-gen">Generado el ${H.toLocaleDateString('es-GT')} ${H.toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit',hour12:false})} por <b>${esc(S.user.nombre||S.user.usuario||'')}</b></p>
+  </div>
+  <div class="r-cab"><img src="logo.png" alt=""><div><h1>Reporte de calibración de boquillas drone</h1><p>Del ${fechaTxt(desde)} al ${fechaTxt(hasta)} · meta ±${(tol*100).toFixed(0)} % por boquilla</p></div>
+    <div class="r-fecha">Generado el ${H.toLocaleDateString('es-GT')}<br>por ${esc(S.user.nombre||S.user.usuario||'')}</div></div>`;
   if(!regs.length && !vs.length) return h+'<section><p class="r-vacio">No hay calibraciones ni vuelos en esas fechas. Cambia las fechas y vuelve a tocar “Ver reporte en pantalla”.</p></section>';
   h+=`<section><div class="r-kpis">
     <div><b>${regs.length}</b><span>Calibraciones · ${new Set(regs.map(r=>r.dron)).size} drones</span></div>
@@ -1550,7 +1603,14 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
       <p>B1 <b>${f(r.b1)}</b> (${pct(r.varB1,1)}) · B2 <b>${f(r.b2)}</b> (${pct(r.varB2,1)})</p><p>Rango ${f(r.min)} – ${f(r.max)} L/min</p></div>`; }).join('')}</div></section>`;
   // GRÁFICAS
   if(graf){ const im=(k)=>graf[k]?`<img class="r-graf" src="data:image/png;base64,${graf[k]}" alt="">`:'';
-    if(graf.boquillas||graf.tiempo) h+=`<section><h2>Gráficas de calibración</h2>${im('boquillas')}${im('tiempo')}</section>`; }
+    if(graf.boquillas) h+=`<section><h2>Gráfica de calibración</h2>${im('boquillas')}</section>`; }
+  // FOTOS DE CALIBRACIÓN (las mismas que guarda cada registro)
+  const fid=u=>{ const m=String(u||'').match(/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/); return m?(m[1]||m[2]):''; };
+  const gruposF={}; regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).forEach(r=>{ const id=fid(r.foto); if(!id) return; (gruposF[id]=gruposF[id]||[]).push(r); });
+  const fotos=Object.entries(gruposF);
+  h+=`<section class="r-larga"><h2>Fotos de calibración (${fotos.length})</h2>${fotos.length?`<div class="r-fotos">${fotos.map(([id,rs])=>{ const r=rs[0], o=rs.every(okR);
+      return `<a class="r-foto" href="https://drive.google.com/file/d/${id}/view" target="_blank" rel="noopener"><img src="https://drive.google.com/thumbnail?id=${id}&sz=w800" alt="Foto ${esc(r.dron)}" loading="eager" onerror="this.closest('.r-foto').classList.add('sin')"><span class="rf-sin">Foto no disponible sin internet</span>
+        <b>${esc(rs.map(x=>x.dron).filter((v,i,a)=>a.indexOf(v)===i).join(', '))} <span class="est ${o?'':'bad'}">${o?'OK':'FUERA'}</span></b><small>${esc(r.fecha)} · ${esc(rs.map(x=>x.descarga).join(', '))} · ${esc(r.labor||'')}</small>${r.observaciones?`<small class="rf-obs">${esc(r.observaciones)}</small>`:''}</a>`; }).join('')}</div>`:'<p class="r-vacio">Ninguna calibración de estas fechas tiene foto.</p>'}</section>`;
   // TODAS LAS CALIBRACIONES
   h+=`<section class="r-larga"><h2>Todas las calibraciones (${regs.length})</h2>${regs.length?`<div class="r-tw"><table>${cabT}<tbody>${regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).map(fila).join('')}</tbody></table></div>`:'<p class="r-vacio">Sin calibraciones en el período.</p>'}</section>`;
   // VUELOS
