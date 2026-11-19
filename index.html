@@ -463,6 +463,23 @@ html[data-tema="oscuro"] #repVista .rv-hoja .r-cab h1{color:#fff}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @page{size:A4 landscape;margin:8mm}
 }
+
+/* ===== Aviso: módulo sin conexión ===== */
+.net-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-radius:20px;padding:12px 16px;margin:0 0 14px;font-size:14px;line-height:1.35}
+.net-banner.hidden{display:none}
+.net-banner > div{flex:1 1 240px;min-width:0}
+.net-banner > div > b{display:block;font-weight:900;font-size:15px}
+.net-banner .nb-ico{font-size:22px;flex:none}
+.net-banner.off{background:#fff3e0;color:#7a4300;border:2px solid #f2a33a}
+.net-banner.sube{background:#e6f6ff;color:#1f4d66;border:2px solid #8fd3f5}
+.net-banner.err{background:#fbe6e3;color:#7a1f15;border:2px solid #e39a90}
+.net-banner .nb-btn{border:0;border-radius:999px;padding:7px 14px;font:800 13px inherit;font-family:inherit;background:rgba(255,255,255,.75);color:inherit;cursor:pointer}
+html[data-tema="oscuro"] .net-banner.off{background:rgba(242,163,58,.14);color:#f6c27a;border-color:rgba(242,163,58,.5)}
+html[data-tema="oscuro"] .net-banner.sube{background:rgba(143,211,245,.12);color:#8fd3f5;border-color:rgba(143,211,245,.4)}
+html[data-tema="oscuro"] .net-banner.err{background:rgba(227,154,144,.12);color:#f0b2a9;border-color:rgba(227,154,144,.45)}
+html[data-tema="oscuro"] .net-banner .nb-btn{background:rgba(255,255,255,.1)}
+.giro-mini{width:20px;height:20px;border-radius:50%;border:3px solid currentColor;border-right-color:transparent;animation:girmini 1s linear infinite;display:inline-block}
+@keyframes girmini{to{transform:rotate(360deg)}}
 </style>
 <script src="../MDE-MT/config.js"></script>
 </head>
@@ -526,6 +543,7 @@ html[data-tema="oscuro"] #repVista .rv-hoja .r-cab h1{color:#fff}
   </header>
 
   <main>
+    <div class="net-banner hidden" id="netBanner" role="status" aria-live="polite"></div>
     <!-- ---------- CALIBRAR ---------- -->
     <div id="v-calibrar">
       <section class="am-hero-cal am-sube"><div class="txt"><small class="am-eyebrow" id="amFechaCal">Calibración de boquillas</small><h2>Calibración de boquillas drone</h2><p>Mida cada boquilla y compárela contra la meta de ±5 %. Verde dentro de rango, rojo fuera.</p></div><div class="fig" id="amFigCal"></div></section>
@@ -892,7 +910,20 @@ function setConexion(on){
   const antes=S.online; S.online=on; S._pintado=true;
   const p=$('netPill'); p.classList.toggle('on',on); p.classList.toggle('off',!on);
   $('netTxt').textContent = on ? 'Conexión' : 'Sin conexión';
+  pintarBanner();
   if(on && antes===false) setTimeout(sincronizar,300);
+}
+function pintarBanner(){
+  const b=$('netBanner'); if(!b) return;
+  const items=S.cola||[], n=items.filter(x=>x.estado!=='error').length, er=items.length-n;
+  const pend = n ? ` <b>${n} registro${n===1?'':'s'}</b> guardado${n===1?'':'s'} en el teléfono.` : '';
+  let h='', cls='';
+  if(!S.online){ cls='off'; h=`<span class="nb-ico">📡</span><div><b>Módulo sin conexión</b><span>Puede seguir calibrando y registrando vuelos: todo se guarda en el teléfono y se sube solo cuando vuelva la señal.${pend}</span></div>`; }
+  else if(n){ cls='sube'; h=`<span class="nb-ico giro-mini"></span><div><b>Subiendo registros hechos sin conexión…</b><span>${n} pendiente${n===1?'':'s'}. No cierre la app.</span></div>`; }
+  if(er){ cls=cls||'err'; h+=`<button type="button" class="nb-btn" id="nbVer">⚠ ${er} con error · Ver</button>`; }
+  else if(h) h+=`<button type="button" class="nb-btn" id="nbVer">Ver</button>`;
+  b.className='net-banner '+cls+(h?'':' hidden'); b.innerHTML=h;
+  const v=$('nbVer'); if(v) v.onclick=()=>$('netPill').click();
 }
 function uid(){ try{ if(crypto.randomUUID) return crypto.randomUUID(); }catch(e){} return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10); }
 
@@ -980,6 +1011,7 @@ async function pintarCola(){
   const q=$('colaN'); q.classList.toggle('hidden',!n); q.classList.toggle('err',!!errs);
   q.textContent = n ? `${n} en cola` : '';
   if(!$('mCola').classList.contains('hidden')) pintarListaCola();
+  pintarBanner();
   return items;
 }
 function pintarListaCola(){
