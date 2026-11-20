@@ -556,6 +556,11 @@ html[data-tema="oscuro"] #repVista .rv-hoja .r-cab h1{color:#fff}
   .rv-hoja{box-shadow:none;margin:0;max-width:none;border-radius:0}
   .rv-hoja td{white-space:normal}
   .rv-hoja section{break-inside:avoid-page}.rv-hoja section.r-larga{break-inside:auto}
+  .rv-hoja .r-gf{break-inside:avoid;page-break-inside:avoid;margin:4mm 0}
+  .rv-hoja img.r-graf{max-height:150mm;width:auto!important;max-width:100%;margin:0 auto!important;break-inside:avoid;page-break-inside:avoid}
+  .rv-hoja tr,.rv-hoja .r-dr,.rv-hoja .ri-dr,.rv-hoja .r-foto,.rv-hoja .r-alerta,.rv-hoja .r-bien,.rv-hoja .r-kpis,.rv-hoja .r-rel-res{break-inside:avoid;page-break-inside:avoid}
+  .rv-hoja h2{break-after:avoid;page-break-after:avoid}
+  .rv-hoja .r-nota{break-after:avoid;page-break-after:avoid}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @page{size:A4 landscape;margin:0}
   .rv-hoja .r-tw{overflow:visible!important}
@@ -1816,7 +1821,7 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
           <span class="ri-res ${x.okEn?(x.okEn===1?'ok':'aten'):'mal'}">${x.okEn?(x.okEn===1?'Bien a la primera':`Quedó bien en el intento ${x.okEn}`):'No quedó en rango'}</span></div>`).join('')}</div>`; }).join('')}</div></section>`;
   }
   // GRÁFICAS
-  if(graf){ const im=(k)=>graf[k]?`<img class="r-graf" src="data:image/png;base64,${graf[k]}" alt="">`:'';
+  if(graf){ const im=(k)=>graf[k]?`<div class="r-gf"><img class="r-graf" src="data:image/png;base64,${graf[k]}" alt=""></div>`:'';
     if(graf.boquillas) h+=`<section><h2>Gráfica de calibración</h2>${im('boquillas')}</section>`; }
   // 3) ESTABILIDAD POR BOQUILLA
   if(A.estab.length){
@@ -1829,7 +1834,7 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
     const vf=v=>`<tr><td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td><td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${cv(v.variacion)}">${pct(v.variacion)}</td><td class="${cv(v.varCaudal)}">${pct(v.varCaudal)}</td><td class="obs">${esc(v.observaciones)}</td></tr>`;
     const cabV='<thead><tr><th>Fecha</th><th>Dron</th><th>Labor</th><th>Área real</th><th>Aplicados</th><th>L/ha teó.</th><th>L/ha real</th><th>% Var</th><th>% Var caudal</th><th>Observaciones</th></tr></thead>';
     h+=`<section class="r-larga"><h2 class="${vsFuera.length?'malo':''}">Vuelos fuera de rango L/ha (${vsFuera.length} de ${vs.length})</h2>${vsFuera.length?`<div class="r-tw"><table class="t-mal">${cabV}<tbody>${vsFuera.map(vf).join('')}</tbody></table></div>`:'<div class="r-bien">Todos los vuelos quedaron dentro del rango de L/ha.</div>'}
-      ${graf&&(graf.lha||graf.vuelos)?`${graf.lha?`<img class="r-graf" src="data:image/png;base64,${graf.lha}" alt="">`:''}${graf.vuelos?`<img class="r-graf" src="data:image/png;base64,${graf.vuelos}" alt="">`:''}`:''}</section>`;
+      ${graf&&(graf.lha||graf.vuelos)?`${graf.lha?`<div class="r-gf"><img class="r-graf" src="data:image/png;base64,${graf.lha}" alt=""></div>`:''}${graf.vuelos?`<div class="r-gf"><img class="r-graf" src="data:image/png;base64,${graf.vuelos}" alt=""></div>`:''}`:''}</section>`;
   }
   // 4) RELACIÓN CALIBRACIÓN — VUELO
   if(A.relacion.length){
