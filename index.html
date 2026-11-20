@@ -454,6 +454,14 @@ html[data-tema="oscuro"] body{background-image:none}
 .rv-hoja .r-rel-res .ok{background:#e3f4dd;color:#1f6b25}.rv-hoja .r-rel-res .aten{background:#fff0d6;color:#8a5a00}.rv-hoja .r-rel-res .mal{background:#fbe6e3;color:#a93224}.rv-hoja .r-rel-res .gris{background:#eef0ee;color:#56635a}
 .rv-hoja td.diag{white-space:normal;min-width:220px;font-weight:800}
 .rv-hoja td.diag.ok{color:#1f6b25}.rv-hoja td.diag.aten{color:#8a5a00}.rv-hoja td.diag.mal{color:#a93224}.rv-hoja td.diag.gris{color:#56635a}
+
+/* envoltorio de impresión: en pantalla no se nota */
+.rv-hoja table.rv-pag{display:block;width:100%;border-collapse:collapse;font-size:inherit}
+.rv-hoja table.rv-pag>thead,.rv-hoja table.rv-pag>tfoot{display:none}
+.rv-hoja table.rv-pag>tbody,.rv-hoja table.rv-pag>tbody>tr{display:block}
+.rv-hoja table.rv-pag>tbody>tr>td,.rv-hoja table.rv-pag>thead>tr>td,.rv-hoja table.rv-pag>tfoot>tr>td{display:block;padding:0!important;border:0!important;background:transparent!important;white-space:normal!important;color:inherit}
+html[data-tema="oscuro"] #repVista .rv-hoja table.rv-pag>tbody>tr>td{background:transparent!important}
+.rv-hoja .rv-esp{display:none}
 /* ===== Fotos de calibración ===== */
 .rv-hoja .r-fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
 .rv-hoja .r-foto{display:block;text-decoration:none;color:#18201a;background:#f3f6f2;border-radius:18px;overflow:hidden;break-inside:avoid;padding-bottom:8px}
@@ -549,7 +557,19 @@ html[data-tema="oscuro"] #repVista .rv-hoja .r-cab h1{color:#fff}
   .rv-hoja td{white-space:normal}
   .rv-hoja section{break-inside:avoid-page}.rv-hoja section.r-larga{break-inside:auto}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  @page{size:A4 landscape;margin:8mm}
+  @page{size:A4 landscape;margin:0}
+  .rv-hoja .r-tw{overflow:visible!important}
+  .rv-hoja table{font-size:10.5px!important}
+  .rv-hoja th,.rv-hoja td{padding:4px 5px!important}
+  .rv-hoja td.obs{min-width:0!important;max-width:none!important}
+  .rv-hoja{padding:0 9mm!important}
+  .rv-hoja .rv-esp{display:block!important;height:8mm}
+  .rv-hoja table.rv-pag{display:table!important;width:100%;table-layout:fixed}
+  .rv-hoja table.rv-pag>thead{display:table-header-group!important}
+  .rv-hoja table.rv-pag>tfoot{display:table-footer-group!important}
+  .rv-hoja table.rv-pag>tbody{display:table-row-group!important}
+  .rv-hoja table.rv-pag>tbody>tr,.rv-hoja table.rv-pag>thead>tr,.rv-hoja table.rv-pag>tfoot>tr{display:table-row!important}
+  .rv-hoja table.rv-pag>tbody>tr>td,.rv-hoja table.rv-pag>thead>tr>td,.rv-hoja table.rv-pag>tfoot>tr>td{display:table-cell!important}
 }
 
 /* ===== Aviso: módulo sin conexión ===== */
@@ -1855,7 +1875,8 @@ $('bVerRep').onclick=async()=>{
     const vs=(j.vuelos||[]).map(v=>Object.assign(v,{iso:iso(v)})).filter(v=>v.iso>=d&&v.iso<=h);
     let graf=null; try{ graf=await graficasReporte(d,h); }catch(e){}
     const comoLeer=(document.querySelector('input[name=rFormato]:checked')||{}).value==='detalle';
-    $('rvHoja').innerHTML=armarReporteCal(d,h,regs,vs,graf,comoLeer);
+    // la tabla envoltorio deja un margen arriba y abajo en cada hoja impresa (la página va sin margen para que el navegador no ponga la dirección web)
+    $('rvHoja').innerHTML='<table class="rv-pag"><thead><tr><td><div class="rv-esp"></div></td></tr></thead><tfoot><tr><td><div class="rv-esp"></div></td></tr></tfoot><tbody><tr><td>'+armarReporteCal(d,h,regs,vs,graf,comoLeer)+'</td></tr></tbody></table>';
     $('rvRango').textContent=`Del ${fechaTxt(d)} al ${fechaTxt(h)}`;
     rvTitulo='Reporte calibración '+fechaTxt(d).replace(/\//g,'-')+' al '+fechaTxt(h).replace(/\//g,'-')+' - Creado por Cobo Cubur';
     $('repVista').classList.remove('hidden'); document.body.classList.add('con-rv'); $('repVista').scrollTop=0;
