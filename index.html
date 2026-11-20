@@ -424,6 +424,36 @@ html[data-tema="oscuro"] body{background-image:none}
   .rv-hoja table.t-ajus td.c-dr{grid-column:1/-1;display:flex;gap:8px;align-items:baseline;font-size:15px}
   .rv-hoja table.t-ajus td.c-que, .rv-hoja table.t-ajus td.c-obs{grid-column:1/-1}
 }
+
+/* ===== Hallazgos, intentos, estabilidad y relación ===== */
+.rv-hoja .r-hall ul{margin:0;padding-left:18px;line-height:1.55}
+.rv-hoja .r-hall li{margin-bottom:4px}
+.rv-hoja .r-rec{background:#fff6e5;border-radius:18px;padding:12px 16px}
+.rv-hoja .r-rec h2{color:#8a5a00}
+.rv-hoja .r-nota{margin:-4px 0 10px;color:#56635a;font-size:12.5px}
+.rv-hoja .ic{display:inline-block;min-width:30px;text-align:center;border-radius:8px;padding:2px 6px;font-weight:900;font-size:12px;color:#fff;margin:0 3px 3px 0}
+.rv-hoja .ic.ok{background:#2e7d32}.rv-hoja .ic.mal{background:#c0392b}
+.rv-hoja .r-int{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.rv-hoja .ri-dr{background:#f3f6f2;border-radius:18px;padding:10px 12px;break-inside:avoid}
+.rv-hoja .ri-cab{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:6px}
+.rv-hoja .ri-cab small{color:#56635a}
+.rv-hoja .ri-nom{display:inline-block;white-space:nowrap;color:#fff;font-weight:900;border-radius:999px;padding:2px 12px;font-size:13.5px}
+.rv-hoja .ri-nom.chico{font-size:12px;padding:1px 9px}
+.rv-hoja .ri-dia{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 0;border-top:1px dashed #d9e2d6}
+.rv-hoja .ri-f{font-weight:800;font-size:12px;color:#56635a;min-width:38px}
+.rv-hoja .ri-chips{flex:1}
+.rv-hoja .ri-res{font-size:12px;font-weight:800}
+.rv-hoja .ri-res.ok{color:#1f6b25}.rv-hoja .ri-res.aten{color:#8a5a00}.rv-hoja .ri-res.mal{color:#a93224}
+.rv-hoja .sem{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 5px 0 2px;vertical-align:middle}
+.rv-hoja .sem.ok{background:#2e7d32}.rv-hoja .sem.aten{background:#d4a017}.rv-hoja .sem.mal{background:#c0392b}.rv-hoja .sem.gris{background:#9aa49f}
+.rv-hoja td small{color:#56635a}
+.rv-hoja .r-rel-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}
+.rv-hoja .r-rel-res div{border-radius:16px;padding:8px 12px}
+.rv-hoja .r-rel-res b{display:block;font-size:22px;font-weight:900}
+.rv-hoja .r-rel-res span{font-size:12px;font-weight:800}
+.rv-hoja .r-rel-res .ok{background:#e3f4dd;color:#1f6b25}.rv-hoja .r-rel-res .aten{background:#fff0d6;color:#8a5a00}.rv-hoja .r-rel-res .mal{background:#fbe6e3;color:#a93224}.rv-hoja .r-rel-res .gris{background:#eef0ee;color:#56635a}
+.rv-hoja td.diag{white-space:normal;min-width:220px;font-weight:800}
+.rv-hoja td.diag.ok{color:#1f6b25}.rv-hoja td.diag.aten{color:#8a5a00}.rv-hoja td.diag.mal{color:#a93224}.rv-hoja td.diag.gris{color:#56635a}
 /* ===== Fotos de calibración ===== */
 .rv-hoja .r-fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
 .rv-hoja .r-foto{display:block;text-decoration:none;color:#18201a;background:#f3f6f2;border-radius:18px;overflow:hidden;break-inside:avoid;padding-bottom:8px}
@@ -1637,7 +1667,80 @@ function imgModelo(mod){ return IMG_MODELO[mod] || 'dron-generico.svg'; }
 
 /* ================= reporte en pantalla (como en Vuelos) ================= */
 const fechaTxt = iso => iso ? iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) : '';
+/* ---------- análisis del reporte en pantalla (igual que el del correo) ---------- */
+function analizarCal(regs, vs, tol){
+  const okR=r=>/DENTRO/i.test(r.estado||''), prom=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;
+  const pa=(x,d)=>isNaN(x)?'—':(x*100).toFixed(d==null?0:d)+'%', pp=x=>x==null||isNaN(x)?'—':(x>0?'+':'')+(x*100).toFixed(2)+'%';
+  const orden=(a,b)=>String(a).localeCompare(String(b),'es',{numeric:true});
+  const clave=r=>r.iso+'|'+String(r.descarga).replace(/\D/g,'').padStart(4,'0');
+  const cal=regs.filter(r=>r.b1!=null&&r.b2!=null).slice().sort((a,b)=>clave(a).localeCompare(clave(b)));
+  const nombres=[...new Set(cal.map(r=>r.dron).concat(vs.map(v=>v.dron)))].sort(orden);
+  const drones=nombres.map(dr=>{
+    const rs=cal.filter(r=>r.dron===dr), vg=rs.map(r=>r.varGeneral).filter(x=>x!=null), ult=rs[rs.length-1];
+    const pct=rs.length?rs.filter(okR).length/rs.length:NaN, absG=prom(vg.map(Math.abs));
+    let clase='Sin calibraciones';
+    if(rs.length){ if(pct>=0.8&&absG<=tol&&okR(ult)) clase='Bueno'; else if(pct<0.5||(!okR(ult)&&pct<0.8)) clase='Crítico'; else clase='Atención'; }
+    const vV=vs.filter(v=>v.dron===dr).map(v=>v.variacion).filter(x=>x!=null);
+    return {dron:dr,n:rs.length,pct,absG,ult,clase,vuelos:vV.length,vueloVar:prom(vV)};
+  });
+  // intentos por drone y día hasta quedar en rango
+  const intentos=[]; const grupos={};
+  cal.forEach(r=>{ const k=r.dron+'|'+r.iso; (grupos[k]=grupos[k]||[]).push(r); });
+  Object.values(grupos).forEach(rs=>{ const i=rs.findIndex(okR); intentos.push({dron:rs[0].dron,fecha:rs[0].fecha,iso:rs[0].iso,rs,okEn:i<0?null:i+1,labor:rs[0].labor}); });
+  intentos.sort((a,b)=>a.iso.localeCompare(b.iso)||orden(a.dron,b.dron));
+  // estabilidad por boquilla (CV de la descarga relativa al teórico)
+  const sd=a=>{ if(a.length<2) return NaN; const m=prom(a); return Math.sqrt(a.reduce((x,y)=>x+(y-m)*(y-m),0)/(a.length-1)); };
+  const estab=[...new Set(cal.map(r=>r.dron))].sort(orden).map(dr=>{
+    const rs=cal.filter(r=>r.dron===dr&&r.caudalBoq>0), fila={dron:dr,n:rs.length};
+    [['b1','varB1'],['b2','varB2']].forEach(([b,vk])=>{ const rel=rs.map(r=>r[b]/r.caudalBoq), m=prom(rel), c=sd(rel)/m, vv=rs.map(r=>r[vk]).filter(x=>x!=null);
+      fila[b]={cv:c,min:vv.length?Math.min(...vv):NaN,max:vv.length?Math.max(...vv):NaN,nivel:rs.length<3||isNaN(c)?'Pocas calibraciones':c<=0.03?'Estable':c<=0.05?'Vigilar':'Revisar'}; });
+    return fila;
+  });
+  // relación calibración → vuelo
+  const relacion=vs.slice().sort((x,y)=>x.iso<y.iso?-1:x.iso>y.iso?1:(x.fila||0)-(y.fila||0)).map(v=>{
+    const mismos=cal.filter(r=>r.dron===v.dron&&r.iso===v.iso);
+    let ref=v.calibracion?mismos.find(r=>String(r.descarga)===String(v.calibracion)):null;
+    if(!ref&&mismos.length) ref=mismos[mismos.length-1];
+    if(!ref){ const prev=cal.filter(r=>r.dron===v.dron&&r.iso<v.iso); ref=prev.length?prev[prev.length-1]:null; }
+    const calOk=ref?okR(ref):null, vueOk=v.variacion!=null?Math.abs(v.variacion)<=tol:null;
+    let diag,niv;
+    if(!ref){diag='Sin calibración de referencia';niv='gris';}
+    else if(vueOk==null){diag='Vuelo sin datos suficientes';niv='gris';}
+    else if(calOk&&vueOk){diag='Correcto: quedó bien en vuelo';niv='ok';}
+    else if(calOk&&!vueOk){diag='Calibrado bien pero aplicó fuera: revisar velocidad, ancho de faja o configuración del vuelo';niv='aten';}
+    else if(!calOk&&vueOk){diag='Aplicó bien aunque la calibración quedó fuera: confirmar la calibración';niv='aten';}
+    else {diag='Calibración y vuelo fuera de rango: recalibrar boquillas';niv='mal';}
+    return {fecha:v.fecha,dron:v.dron,labor:v.labor,ref,calOk,vueOk,calVar:ref?ref.varGeneral:null,vueVar:v.variacion,diag,niv};
+  });
+  // hallazgos y recomendaciones
+  const con=drones.filter(d=>d.n), hall=[], rec=[];
+  if(cal.length) hall.push(`Se registraron <b>${cal.length}</b> calibraciones en <b>${con.length}</b> drones; <b>${pa(cal.filter(okR).length/cal.length)}</b> quedaron dentro de rango (±${(tol*100).toFixed(0)} % por boquilla).`);
+  const dos=con.filter(d=>d.n>=2);
+  if(dos.length){ const mejor=dos.slice().sort((a,b)=>b.pct-a.pct||a.absG-b.absG)[0], peor=dos.slice().sort((a,b)=>a.pct-b.pct||b.absG-a.absG)[0];
+    hall.push(`Mejor desempeño: <b>${esc(mejor.dron)}</b> (${pa(mejor.pct)} dentro de rango, variación promedio ${pa(mejor.absG,2)}).`);
+    if(peor.dron!==mejor.dron) hall.push(`Mayor dificultad: <b>${esc(peor.dron)}</b> (${pa(peor.pct)} dentro de rango, variación promedio ${pa(peor.absG,2)}).`); }
+  const muchos=intentos.filter(x=>x.rs.length>=3).sort((a,b)=>b.rs.length-a.rs.length);
+  muchos.slice(0,4).forEach(x=>hall.push(`<b>${esc(x.dron)}</b> necesitó <b>${x.rs.length} descargas</b> el ${esc(x.fecha.slice(0,5))}${x.okEn?` y quedó en rango en la ${esc(x.rs[x.okEn-1].descarga)}`:' y <b>no llegó a quedar en rango</b>'}.`));
+  con.forEach(d=>{ if(d.ult&&!okR(d.ult)) hall.push(`<b>${esc(d.dron)}</b>: su última calibración (${esc(d.ult.fecha)}, ${esc(d.ult.descarga)}) quedó <b>fuera de rango</b>.`);
+    if(d.vuelos&&Math.abs(d.vueloVar)>tol) hall.push(`<b>${esc(d.dron)}</b>: en vuelo aplicó en promedio ${pp(d.vueloVar)} respecto al L/ha teórico.`); });
+  const revisar=estab.filter(e=>e.b1.nivel==='Revisar'||e.b2.nivel==='Revisar');
+  revisar.forEach(e=>hall.push(`<b>${esc(e.dron)}</b>: ${[e.b1.nivel==='Revisar'?'la boquilla 1':'',e.b2.nivel==='Revisar'?'la boquilla 2':''].filter(Boolean).join(' y ')} descarga de forma muy irregular entre calibraciones (posible desgaste u obstrucción).`));
+  const relOk=relacion.filter(r=>r.calOk&&r.vueOk).length, relOper=relacion.filter(r=>r.calOk&&r.vueOk===false).length;
+  if(relacion.length) hall.push(`Calibración vs vuelo: <b>${relOk} de ${relacion.length}</b> vuelos quedaron bien después de una calibración correcta.`);
+  if(relOper) hall.push(`<b>${relOper}</b> vuelo${relOper>1?'s':''} aplicaron fuera de rango aunque la calibración estaba bien: el problema apunta a la operación (velocidad, ancho de faja o configuración), no a las boquillas.`);
+  const manual=cal.filter(r=>/MANUAL/i.test(r.parametros||'')).length;
+  if(manual) hall.push(`<b>${manual}</b> calibración${manual>1?'es':''} se hicieron con parámetros ajustados manualmente.`);
+  if(!cal.length) hall.push('No hay calibraciones registradas en el período seleccionado.');
+  const crit=con.filter(d=>d.clase==='Crítico').map(d=>d.dron), aten=con.filter(d=>d.clase==='Atención').map(d=>d.dron);
+  if(crit.length) rec.push(`Recalibrar y revisar boquillas, filtros y bomba de: <b>${crit.map(esc).join(', ')}</b> antes de su próximo vuelo.`);
+  if(revisar.length) rec.push(`Revisar o cambiar las boquillas irregulares de: <b>${revisar.map(e=>esc(e.dron)).join(', ')}</b>.`);
+  if(muchos.length) rec.push(`Revisar bomba, filtros y mangueras de los drones que necesitaron 3 o más descargas: <b>${[...new Set(muchos.map(x=>x.dron))].map(esc).join(', ')}</b>.`);
+  if(aten.length) rec.push(`Dar seguimiento en la próxima calibración a: <b>${aten.map(esc).join(', ')}</b>.`);
+  if(!rec.length&&con.length) rec.push('Todos los drones calibrados se mantienen en buen estado. Continuar con la rutina de calibración.');
+  return {drones,intentos,estab,relacion,hall,rec};
+}
 function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
+  const A=analizarCal(regs, vs, S.cat.flujos.variacion);
   const tol=S.cat.flujos.variacion, okR=r=>/DENTRO/i.test(r.estado||'');
   const orden=(a,b)=>String(a).localeCompare(String(b),'es',{numeric:true});
   const key=r=>r.iso+'|'+String(r.descarga).replace(/\D/g,'').padStart(4,'0');
@@ -1675,22 +1778,33 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
     <div class="${fuera.length?'malo':''}"><b class="${fuera.length?'rp':''}">${fuera.length}</b><span>Calibraciones fuera de rango</span></div>
     <div class="${dronesFuera.length?'malo':''}"><b class="${dronesFuera.length?'rp':''}">${dronesFuera.length}</b><span>Drones fuera (última calibración)</span></div></div>
     ${vgProm!=null?`<p style="margin:8px 0 0;color:#56635a">Variación general promedio: <b style="color:#18201a">${(vgProm*100).toFixed(2)} %</b> (valor absoluto).</p>`:''}</section>`;
+  // 1) HALLAZGOS Y RECOMENDACIONES
+  h+=`<section><div class="r-dos r-hall"><div><h2>Hallazgos principales</h2><ul>${A.hall.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+    <div class="r-rec"><h2>Recomendaciones</h2><ul>${A.rec.map(x=>`<li>${x}</li>`).join('')}</ul></div></div></section>`;
   // ESTADO POR DRON
   if(last.length) h+=`<section><h2>Estado por dron <small style="font-size:13px;color:#56635a">última calibración</small></h2><div class="r-drones">${last.map(r=>{ const o=okR(r), mod=modeloDron(r.dron); return `<div class="r-dr ${o?'':'bad'}">
       <div class="dc-img"><span class="mod-dr">${mod||'Drone'}</span><img src="${imgModelo(mod)}" alt="" onerror="this.onerror=null;this.src='dron-generico.svg'"></div>
       <h3>${esc(r.dron)} <span class="est ${o?'':'bad'}">${o?'OK':'FUERA'}</span></h3>
       <p>${esc(r.fecha)} · ${esc(r.descarga)} · ${esc(r.labor||'')}</p>
       <p>B1 <b>${f(r.b1)}</b> (${pct(r.varB1,1)}) · B2 <b>${f(r.b2)}</b> (${pct(r.varB2,1)})</p><p>Rango ${f(r.min)} – ${f(r.max)} L/min</p></div>`; }).join('')}</div></section>`;
-  // FOTOS DE CALIBRACIÓN (las mismas que guarda cada registro)
-  const fid=u=>{ const m=String(u||'').match(/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/); return m?(m[1]||m[2]):''; };
-  const gruposF={}; regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).forEach(r=>{ const id=fid(r.foto); if(!id) return; (gruposF[id]=gruposF[id]||[]).push(r); });
-  const fotos=Object.entries(gruposF);
-  h+=`<section class="r-larga"><h2>Fotos de calibración (${fotos.length})</h2>${fotos.length?`<div class="r-fotos">${fotos.map(([id,rs])=>{ const r=rs[0], o=rs.every(okR);
-      return `<a class="r-foto" href="https://drive.google.com/file/d/${id}/view" target="_blank" rel="noopener"><img src="https://drive.google.com/thumbnail?id=${id}&sz=w800" alt="Foto ${esc(r.dron)}" loading="eager" onerror="this.closest('.r-foto').classList.add('sin')"><span class="rf-sin">Foto no disponible sin internet</span>
-        <b>${esc(rs.map(x=>x.dron).filter((v,i,a)=>a.indexOf(v)===i).join(', '))} <span class="est ${o?'':'bad'}">${o?'OK':'FUERA'}</span></b><small>${esc(r.fecha)} · ${esc(rs.map(x=>x.descarga).join(', '))} · ${esc(r.labor||'')}</small>${r.observaciones?`<small class="rf-obs">${esc(r.observaciones)}</small>`:''}</a>`; }).join('')}</div>`:'<p class="r-vacio">Ninguna calibración de estas fechas tiene foto.</p>'}</section>`;
+  // 2) INTENTOS HASTA QUEDAR CALIBRADO
+  if(A.intentos.length){
+    const porDr={}; A.intentos.forEach(x=>(porDr[x.dron]=porDr[x.dron]||[]).push(x));
+    h+=`<section><h2>Intentos hasta quedar calibrado</h2><p class="r-nota">Cada cuadrito es una descarga del día: <span class="ic ok">R</span> dentro de rango · <span class="ic mal">R</span> fuera. Lo ideal es quedar bien en la primera.</p>
+    <div class="r-int">${Object.entries(porDr).map(([dr,xs])=>{ const t=xs.reduce((a,x)=>a+x.rs.length,0), prom=(t/xs.length).toFixed(1), primera=xs.filter(x=>x.okEn===1).length;
+      return `<div class="ri-dr"><div class="ri-cab"><span class="ri-nom" style="background:${colorDron(dr)}">${esc(dr)}</span><small>${xs.length} día${xs.length>1?'s':''} · promedio <b>${prom}</b> descarga${prom==='1.0'?'':'s'} por día · bien a la primera ${primera} de ${xs.length}</small></div>
+        ${xs.map(x=>`<div class="ri-dia"><span class="ri-f">${esc(x.fecha.slice(0,5))}</span><span class="ri-chips">${x.rs.map(r=>`<span class="ic ${/DENTRO/i.test(r.estado)?'ok':'mal'}" title="${esc(r.descarga)} · B1 ${pct(r.varB1,1)} · B2 ${pct(r.varB2,1)}">${esc(r.descarga)}</span>`).join('')}</span>
+          <span class="ri-res ${x.okEn?(x.okEn===1?'ok':'aten'):'mal'}">${x.okEn?(x.okEn===1?'Bien a la primera':`Quedó bien en el intento ${x.okEn}`):'No quedó en rango'}</span></div>`).join('')}</div>`; }).join('')}</div></section>`;
+  }
   // GRÁFICAS
   if(graf){ const im=(k)=>graf[k]?`<img class="r-graf" src="data:image/png;base64,${graf[k]}" alt="">`:'';
     if(graf.boquillas) h+=`<section><h2>Gráfica de calibración</h2>${im('boquillas')}</section>`; }
+  // 3) ESTABILIDAD POR BOQUILLA
+  if(A.estab.length){
+    const cel=b=>{ const c={Estable:'ok',Vigilar:'aten',Revisar:'mal'}[b.nivel]||'gris'; return `<td><span class="sem ${c}"></span><b>${isNaN(b.cv)?'—':(b.cv*100).toFixed(1)+'%'}</b> <small>${b.nivel}</small></td>`; };
+    h+=`<section><h2>Estabilidad por boquilla</h2><p class="r-nota">Mide qué tan pareja descarga cada boquilla entre calibraciones (coeficiente de variación): <span class="sem ok"></span>≤ 3 % estable · <span class="sem aten"></span>3–5 % vigilar · <span class="sem mal"></span>&gt; 5 % revisar (desgaste, obstrucción o presión irregular). Se necesitan 3 o más calibraciones.</p>
+    <div class="r-tw"><table><thead><tr><th>Dron</th><th>Calib.</th><th>Boquilla 1</th><th>Variación B1 (mín. a máx.)</th><th>Boquilla 2</th><th>Variación B2 (mín. a máx.)</th></tr></thead><tbody>${A.estab.map(e=>`<tr><td><span class="ri-nom chico" style="background:${colorDron(e.dron)}">${esc(e.dron)}</span></td><td>${e.n}</td>${cel(e.b1)}<td>${pct(e.b1.min,1)} a ${pct(e.b1.max,1)}</td>${cel(e.b2)}<td>${pct(e.b2.min,1)} a ${pct(e.b2.max,1)}</td></tr>`).join('')}</tbody></table></div></section>`;
+  }
   // VUELOS
   if(vs.length){
     const vf=v=>`<tr><td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td><td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${cv(v.variacion)}">${pct(v.variacion)}</td><td class="${cv(v.varCaudal)}">${pct(v.varCaudal)}</td><td class="obs">${esc(v.observaciones)}</td></tr>`;
@@ -1698,8 +1812,15 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
     h+=`<section class="r-larga"><h2 class="${vsFuera.length?'malo':''}">Vuelos fuera de rango L/ha (${vsFuera.length} de ${vs.length})</h2>${vsFuera.length?`<div class="r-tw"><table class="t-mal">${cabV}<tbody>${vsFuera.map(vf).join('')}</tbody></table></div>`:'<div class="r-bien">Todos los vuelos quedaron dentro del rango de L/ha.</div>'}
       ${graf&&(graf.lha||graf.vuelos)?`${graf.lha?`<img class="r-graf" src="data:image/png;base64,${graf.lha}" alt="">`:''}${graf.vuelos?`<img class="r-graf" src="data:image/png;base64,${graf.vuelos}" alt="">`:''}`:''}</section>`;
   }
-  // TODAS LAS CALIBRACIONES
-  h+=`<section class="r-larga"><h2>Todas las calibraciones (${regs.length})</h2>${regs.length?`<div class="r-tw"><table>${cabT}<tbody>${regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).map(fila).join('')}</tbody></table></div>`:'<p class="r-vacio">Sin calibraciones en el período.</p>'}</section>`;
+  // 4) RELACIÓN CALIBRACIÓN — VUELO
+  if(A.relacion.length){
+    const n=k=>A.relacion.filter(r=>r.niv===k).length;
+    h+=`<section class="r-larga"><h2>Relación calibración — vuelo</h2><p class="r-nota">Compara la calibración de ese día con lo que el drone aplicó en vuelo, para saber si un problema viene de las boquillas o de la operación.</p>
+    <div class="r-rel-res"><div class="ok"><b>${n('ok')}</b><span>Correctos</span></div><div class="aten"><b>${n('aten')}</b><span>Revisar operación o calibración</span></div><div class="mal"><b>${n('mal')}</b><span>Recalibrar boquillas</span></div>${n('gris')?`<div class="gris"><b>${n('gris')}</b><span>Sin referencia</span></div>`:''}</div>
+    <div class="r-tw"><table><thead><tr><th>Fecha</th><th>Dron</th><th>Calibración de referencia</th><th>Var. calibración</th><th>Var. L/ha vuelo</th><th>Diagnóstico</th></tr></thead><tbody>${A.relacion.map(r=>`<tr><td>${esc(String(r.fecha).slice(0,5))}</td><td><span class="ri-nom chico" style="background:${colorDron(r.dron)}">${esc(r.dron)}</span></td>
+      <td>${r.ref?`${esc(r.ref.descarga)}${r.ref.iso!==toISO(r.fecha)?` <small>(${esc(r.ref.fecha.slice(0,5))})</small>`:''} <span class="est ${r.calOk?'':'bad'}">${r.calOk?'OK':'FUERA'}</span>`:'—'}</td>
+      <td class="${cv(r.calVar)}">${pct(r.calVar)}</td><td class="${cv(r.vueVar)}">${pct(r.vueVar)}</td><td class="diag ${r.niv}">${esc(r.diag)}</td></tr>`).join('')}</tbody></table></div></section>`;
+  }
   // FUERA DE RANGO
   h+=`<section class="r-larga"><h2 class="${fuera.length?'malo':''}">Salieron del rango en la calibración (${fuera.length})</h2>`;
   if(fuera.length){
@@ -1708,6 +1829,15 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
       fuera.map(r=>`<tr><td class="c-dr"><b>${esc(r.dron)}</b><small class="r-fch">${esc(String(r.fecha).slice(0,5))}</small></td><td data-l="Labor">${esc(r.labor)}</td><td data-l="Desc.">${esc(r.descarga)}</td><td class="rp c-que" data-l="Qué salió">${motivo(r)}</td><td data-l="Rango">${f(r.min)} – ${f(r.max)}</td><td data-l="B1">${f(r.b1)}</td><td data-l="B2">${f(r.b2)}</td><td data-l="Supervisor">${esc(r.supervisor)}</td><td class="c-obs" data-l="Observaciones">${esc(r.observaciones)||'—'}</td></tr>`).join('')}</tbody></table>`;
   } else h+=`<div class="r-bien"><b>Ninguna calibración salió del rango</b> en estas fechas. Todas las boquillas quedaron dentro de ±${(tol*100).toFixed(0)} %.</div>`;
   h+='</section>';
+  // TODAS LAS CALIBRACIONES
+  h+=`<section class="r-larga"><h2>Todas las calibraciones (${regs.length})</h2>${regs.length?`<div class="r-tw"><table>${cabT}<tbody>${regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).map(fila).join('')}</tbody></table></div>`:'<p class="r-vacio">Sin calibraciones en el período.</p>'}</section>`;
+  // FOTOS DE CALIBRACIÓN (las mismas que guarda cada registro)
+  const fid=u=>{ const m=String(u||'').match(/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/); return m?(m[1]||m[2]):''; };
+  const gruposF={}; regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).forEach(r=>{ const id=fid(r.foto); if(!id) return; (gruposF[id]=gruposF[id]||[]).push(r); });
+  const fotos=Object.entries(gruposF);
+  h+=`<section class="r-larga"><h2>Fotos de calibración (${fotos.length})</h2>${fotos.length?`<div class="r-fotos">${fotos.map(([id,rs])=>{ const r=rs[0], o=rs.every(okR);
+      return `<a class="r-foto" href="https://drive.google.com/file/d/${id}/view" target="_blank" rel="noopener"><img src="https://drive.google.com/thumbnail?id=${id}&sz=w800" alt="Foto ${esc(r.dron)}" loading="eager" onerror="this.closest('.r-foto').classList.add('sin')"><span class="rf-sin">Foto no disponible sin internet</span>
+        <b>${esc(rs.map(x=>x.dron).filter((v,i,a)=>a.indexOf(v)===i).join(', '))} <span class="est ${o?'':'bad'}">${o?'OK':'FUERA'}</span></b><small>${esc(r.fecha)} · ${esc(rs.map(x=>x.descarga).join(', '))} · ${esc(r.labor||'')}</small>${r.observaciones?`<small class="rf-obs">${esc(r.observaciones)}</small>`:''}</a>`; }).join('')}</div>`:'<p class="r-vacio">Ninguna calibración de estas fechas tiene foto.</p>'}</section>`;
   if(comoLeer) h+=`<section><h2>Cómo leerlo</h2><p style="margin:0;color:#2f3b33">Cada boquilla debe entregar la mitad del caudal teórico (L/ha × velocidad × ancho de faja × 60 ÷ 10 000) con una tolerancia de ±${(tol*100).toFixed(0)} %. Si una boquilla queda por arriba, aplica de más; si queda por abajo, aplica de menos. La sección roja lista las calibraciones que salieron del rango y qué boquilla falló; “Estado por dron” muestra cómo quedó cada drone en su última calibración.</p></section>`;
   h+=`<div class="r-pie">Ingenio Madre Tierra · Departamento de Malezas y Madurantes · Calibración de boquillas drone</div>`;
   return h;
