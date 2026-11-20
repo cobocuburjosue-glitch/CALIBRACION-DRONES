@@ -1587,14 +1587,6 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
     <div class="${fuera.length?'malo':''}"><b class="${fuera.length?'rp':''}">${fuera.length}</b><span>Calibraciones fuera de rango</span></div>
     <div class="${dronesFuera.length?'malo':''}"><b class="${dronesFuera.length?'rp':''}">${dronesFuera.length}</b><span>Drones fuera (última calibración)</span></div></div>
     ${vgProm!=null?`<p style="margin:8px 0 0;color:#56635a">Variación general promedio: <b style="color:#18201a">${(vgProm*100).toFixed(2)} %</b> (valor absoluto).</p>`:''}</section>`;
-  // FUERA DE RANGO
-  h+=`<section class="r-larga"><h2 class="${fuera.length?'malo':''}">Salieron del rango en la calibración (${fuera.length})</h2>`;
-  if(fuera.length){
-    h+=`<div class="r-alerta"><b>${fuera.length} ${fuera.length>1?'calibraciones':'calibración'} fuera de ±${(tol*100).toFixed(0)} %.</b> ${dronesFuera.length?`Siguen fuera en su última calibración: <b>${dronesFuera.map(r=>esc(r.dron)).join(', ')}</b> — recalibrar antes de volar.`:'Todos los drones quedaron dentro de rango en su última calibración.'}</div>
-      <div class="r-tw"><table class="t-mal"><thead><tr><th>Fecha</th><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>Qué salió</th><th>Rango por boquilla</th><th>B1</th><th>B2</th><th>Observaciones</th></tr></thead><tbody>${
-      fuera.map(r=>`<tr><td>${esc(r.fecha)}</td><td>${esc(r.descarga)}</td><td><b>${esc(r.dron)}</b></td><td>${esc(r.labor)}</td><td>${esc(r.supervisor)}</td><td class="rp" style="white-space:normal">${motivo(r)}</td><td>${f(r.min)} – ${f(r.max)}</td><td>${f(r.b1)}</td><td>${f(r.b2)}</td><td class="obs">${esc(r.observaciones)}</td></tr>`).join('')}</tbody></table></div>`;
-  } else h+=`<div class="r-bien"><b>Ninguna calibración salió del rango</b> en estas fechas. Todas las boquillas quedaron dentro de ±${(tol*100).toFixed(0)} %.</div>`;
-  h+='</section>';
   // ESTADO POR DRON
   if(last.length) h+=`<section><h2>Estado por dron <small style="font-size:13px;color:#56635a">última calibración</small></h2><div class="r-drones">${last.map(r=>{ const o=okR(r), mod=modeloDron(r.dron); return `<div class="r-dr ${o?'':'bad'}">
       <div class="dc-img"><span class="mod-dr">${mod||'Drone'}</span><img src="${imgModelo(mod)}" alt="" onerror="this.onerror=null;this.src='dron-generico.svg'"></div>
@@ -1620,6 +1612,14 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
     h+=`<section class="r-larga"><h2 class="${vsFuera.length?'malo':''}">Vuelos fuera de rango L/ha (${vsFuera.length} de ${vs.length})</h2>${vsFuera.length?`<div class="r-tw"><table class="t-mal">${cabV}<tbody>${vsFuera.map(vf).join('')}</tbody></table></div>`:'<div class="r-bien">Todos los vuelos quedaron dentro del rango de L/ha.</div>'}
       ${graf&&(graf.lha||graf.vuelos)?`${graf.lha?`<img class="r-graf" src="data:image/png;base64,${graf.lha}" alt="">`:''}${graf.vuelos?`<img class="r-graf" src="data:image/png;base64,${graf.vuelos}" alt="">`:''}`:''}</section>`;
   }
+  // FUERA DE RANGO
+  h+=`<section class="r-larga"><h2 class="${fuera.length?'malo':''}">Salieron del rango en la calibración (${fuera.length})</h2>`;
+  if(fuera.length){
+    h+=`<div class="r-alerta"><b>${fuera.length} ${fuera.length>1?'calibraciones':'calibración'} fuera de ±${(tol*100).toFixed(0)} %.</b> ${dronesFuera.length?`Siguen fuera en su última calibración: <b>${dronesFuera.map(r=>esc(r.dron)).join(', ')}</b> — recalibrar antes de volar.`:'Todos los drones quedaron dentro de rango en su última calibración.'}</div>
+      <div class="r-tw"><table class="t-mal"><thead><tr><th>Fecha</th><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>Qué salió</th><th>Rango por boquilla</th><th>B1</th><th>B2</th><th>Observaciones</th></tr></thead><tbody>${
+      fuera.map(r=>`<tr><td>${esc(r.fecha)}</td><td>${esc(r.descarga)}</td><td><b>${esc(r.dron)}</b></td><td>${esc(r.labor)}</td><td>${esc(r.supervisor)}</td><td class="rp" style="white-space:normal;min-width:190px">${motivo(r)}</td><td>${f(r.min)} – ${f(r.max)}</td><td>${f(r.b1)}</td><td>${f(r.b2)}</td><td class="obs">${esc(r.observaciones)}</td></tr>`).join('')}</tbody></table></div>`;
+  } else h+=`<div class="r-bien"><b>Ninguna calibración salió del rango</b> en estas fechas. Todas las boquillas quedaron dentro de ±${(tol*100).toFixed(0)} %.</div>`;
+  h+='</section>';
   if(comoLeer) h+=`<section><h2>Cómo leerlo</h2><p style="margin:0;color:#2f3b33">Cada boquilla debe entregar la mitad del caudal teórico (L/ha × velocidad × ancho de faja × 60 ÷ 10 000) con una tolerancia de ±${(tol*100).toFixed(0)} %. Si una boquilla queda por arriba, aplica de más; si queda por abajo, aplica de menos. La sección roja lista las calibraciones que salieron del rango y qué boquilla falló; “Estado por dron” muestra cómo quedó cada drone en su última calibración.</p></section>`;
   h+=`<div class="r-pie">Ingenio Madre Tierra · Departamento de Malezas y Madurantes · Calibración de boquillas drone</div>`;
   return h;
