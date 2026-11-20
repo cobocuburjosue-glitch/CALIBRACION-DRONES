@@ -409,6 +409,21 @@ html[data-tema="oscuro"] body{background-image:none}
 .rv-hoja .rp-gen{margin:16px 0 0;font-size:12.5px;color:#d6ecd7}
 .rv-hoja .rp-gen b{color:#fff}
 .rv-hoja .r-cab{display:none!important}
+
+/* tabla "Salieron del rango": se ve completa, sin barra para correr */
+.rv-hoja table.t-ajus{table-layout:fixed;width:100%;font-size:12px}
+.rv-hoja table.t-ajus th,.rv-hoja table.t-ajus td{white-space:normal;word-break:break-word;padding:5px 6px;vertical-align:top}
+.rv-hoja table.t-ajus td.rp{font-size:11.5px;line-height:1.3}
+.rv-hoja .r-fch{display:block;font-size:10.5px;color:#7a877d;font-weight:700}
+@media screen and (max-width:720px){
+  .rv-hoja table.t-ajus, .rv-hoja table.t-ajus tbody{display:block}
+  .rv-hoja table.t-ajus colgroup, .rv-hoja table.t-ajus thead{display:none}
+  .rv-hoja table.t-ajus tr{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 10px;background:#fbefed;border-radius:16px;padding:10px 12px;margin-bottom:8px}
+  .rv-hoja table.t-ajus tr:nth-child(even) td, .rv-hoja table.t-ajus td{background:transparent!important;border:0;padding:0;font-size:12.5px}
+  .rv-hoja table.t-ajus td[data-l]::before{content:attr(data-l);display:block;font-size:10.5px;font-weight:800;color:#a93224;opacity:.75}
+  .rv-hoja table.t-ajus td.c-dr{grid-column:1/-1;display:flex;gap:8px;align-items:baseline;font-size:15px}
+  .rv-hoja table.t-ajus td.c-que, .rv-hoja table.t-ajus td.c-obs{grid-column:1/-1}
+}
 /* ===== Fotos de calibración ===== */
 .rv-hoja .r-fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
 .rv-hoja .r-foto{display:block;text-decoration:none;color:#18201a;background:#f3f6f2;border-radius:18px;overflow:hidden;break-inside:avoid;padding-bottom:8px}
@@ -1593,9 +1608,6 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
       <h3>${esc(r.dron)} <span class="est ${o?'':'bad'}">${o?'OK':'FUERA'}</span></h3>
       <p>${esc(r.fecha)} · ${esc(r.descarga)} · ${esc(r.labor||'')}</p>
       <p>B1 <b>${f(r.b1)}</b> (${pct(r.varB1,1)}) · B2 <b>${f(r.b2)}</b> (${pct(r.varB2,1)})</p><p>Rango ${f(r.min)} – ${f(r.max)} L/min</p></div>`; }).join('')}</div></section>`;
-  // GRÁFICAS
-  if(graf){ const im=(k)=>graf[k]?`<img class="r-graf" src="data:image/png;base64,${graf[k]}" alt="">`:'';
-    if(graf.boquillas) h+=`<section><h2>Gráfica de calibración</h2>${im('boquillas')}</section>`; }
   // FOTOS DE CALIBRACIÓN (las mismas que guarda cada registro)
   const fid=u=>{ const m=String(u||'').match(/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/); return m?(m[1]||m[2]):''; };
   const gruposF={}; regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).forEach(r=>{ const id=fid(r.foto); if(!id) return; (gruposF[id]=gruposF[id]||[]).push(r); });
@@ -1603,8 +1615,9 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
   h+=`<section class="r-larga"><h2>Fotos de calibración (${fotos.length})</h2>${fotos.length?`<div class="r-fotos">${fotos.map(([id,rs])=>{ const r=rs[0], o=rs.every(okR);
       return `<a class="r-foto" href="https://drive.google.com/file/d/${id}/view" target="_blank" rel="noopener"><img src="https://drive.google.com/thumbnail?id=${id}&sz=w800" alt="Foto ${esc(r.dron)}" loading="eager" onerror="this.closest('.r-foto').classList.add('sin')"><span class="rf-sin">Foto no disponible sin internet</span>
         <b>${esc(rs.map(x=>x.dron).filter((v,i,a)=>a.indexOf(v)===i).join(', '))} <span class="est ${o?'':'bad'}">${o?'OK':'FUERA'}</span></b><small>${esc(r.fecha)} · ${esc(rs.map(x=>x.descarga).join(', '))} · ${esc(r.labor||'')}</small>${r.observaciones?`<small class="rf-obs">${esc(r.observaciones)}</small>`:''}</a>`; }).join('')}</div>`:'<p class="r-vacio">Ninguna calibración de estas fechas tiene foto.</p>'}</section>`;
-  // TODAS LAS CALIBRACIONES
-  h+=`<section class="r-larga"><h2>Todas las calibraciones (${regs.length})</h2>${regs.length?`<div class="r-tw"><table>${cabT}<tbody>${regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).map(fila).join('')}</tbody></table></div>`:'<p class="r-vacio">Sin calibraciones en el período.</p>'}</section>`;
+  // GRÁFICAS
+  if(graf){ const im=(k)=>graf[k]?`<img class="r-graf" src="data:image/png;base64,${graf[k]}" alt="">`:'';
+    if(graf.boquillas) h+=`<section><h2>Gráfica de calibración</h2>${im('boquillas')}</section>`; }
   // VUELOS
   if(vs.length){
     const vf=v=>`<tr><td>${esc(v.fecha)}</td><td><b>${esc(v.dron)}</b></td><td>${esc(v.labor)}</td><td>${f(v.areaReal,2)}</td><td>${f(v.aplicados,2)}</td><td>${f(v.lhaTeorico,2)}</td><td>${f(v.lhaReal,2)}</td><td class="${cv(v.variacion)}">${pct(v.variacion)}</td><td class="${cv(v.varCaudal)}">${pct(v.varCaudal)}</td><td class="obs">${esc(v.observaciones)}</td></tr>`;
@@ -1612,12 +1625,14 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
     h+=`<section class="r-larga"><h2 class="${vsFuera.length?'malo':''}">Vuelos fuera de rango L/ha (${vsFuera.length} de ${vs.length})</h2>${vsFuera.length?`<div class="r-tw"><table class="t-mal">${cabV}<tbody>${vsFuera.map(vf).join('')}</tbody></table></div>`:'<div class="r-bien">Todos los vuelos quedaron dentro del rango de L/ha.</div>'}
       ${graf&&(graf.lha||graf.vuelos)?`${graf.lha?`<img class="r-graf" src="data:image/png;base64,${graf.lha}" alt="">`:''}${graf.vuelos?`<img class="r-graf" src="data:image/png;base64,${graf.vuelos}" alt="">`:''}`:''}</section>`;
   }
+  // TODAS LAS CALIBRACIONES
+  h+=`<section class="r-larga"><h2>Todas las calibraciones (${regs.length})</h2>${regs.length?`<div class="r-tw"><table>${cabT}<tbody>${regs.slice().sort((a,b)=>key(a).localeCompare(key(b))).map(fila).join('')}</tbody></table></div>`:'<p class="r-vacio">Sin calibraciones en el período.</p>'}</section>`;
   // FUERA DE RANGO
   h+=`<section class="r-larga"><h2 class="${fuera.length?'malo':''}">Salieron del rango en la calibración (${fuera.length})</h2>`;
   if(fuera.length){
     h+=`<div class="r-alerta"><b>${fuera.length} ${fuera.length>1?'calibraciones':'calibración'} fuera de ±${(tol*100).toFixed(0)} %.</b> ${dronesFuera.length?`Siguen fuera en su última calibración: <b>${dronesFuera.map(r=>esc(r.dron)).join(', ')}</b> — recalibrar antes de volar.`:'Todos los drones quedaron dentro de rango en su última calibración.'}</div>
-      <div class="r-tw"><table class="t-mal"><thead><tr><th>Fecha</th><th>Desc.</th><th>Dron</th><th>Labor</th><th>Supervisor</th><th>Qué salió</th><th>Rango por boquilla</th><th>B1</th><th>B2</th><th>Observaciones</th></tr></thead><tbody>${
-      fuera.map(r=>`<tr><td>${esc(r.fecha)}</td><td>${esc(r.descarga)}</td><td><b>${esc(r.dron)}</b></td><td>${esc(r.labor)}</td><td>${esc(r.supervisor)}</td><td class="rp" style="white-space:normal;min-width:190px">${motivo(r)}</td><td>${f(r.min)} – ${f(r.max)}</td><td>${f(r.b1)}</td><td>${f(r.b2)}</td><td class="obs">${esc(r.observaciones)}</td></tr>`).join('')}</tbody></table></div>`;
+      <table class="t-mal t-ajus"><colgroup><col style="width:11%"><col style="width:9%"><col style="width:6%"><col style="width:19%"><col style="width:12%"><col style="width:7%"><col style="width:7%"><col style="width:10%"><col></colgroup><thead><tr><th>Dron</th><th>Labor</th><th>Desc.</th><th>Qué salió</th><th>Rango por boquilla</th><th>B1</th><th>B2</th><th>Supervisor</th><th>Observaciones</th></tr></thead><tbody>${
+      fuera.map(r=>`<tr><td class="c-dr"><b>${esc(r.dron)}</b><small class="r-fch">${esc(String(r.fecha).slice(0,5))}</small></td><td data-l="Labor">${esc(r.labor)}</td><td data-l="Desc.">${esc(r.descarga)}</td><td class="rp c-que" data-l="Qué salió">${motivo(r)}</td><td data-l="Rango">${f(r.min)} – ${f(r.max)}</td><td data-l="B1">${f(r.b1)}</td><td data-l="B2">${f(r.b2)}</td><td data-l="Supervisor">${esc(r.supervisor)}</td><td class="c-obs" data-l="Observaciones">${esc(r.observaciones)||'—'}</td></tr>`).join('')}</tbody></table>`;
   } else h+=`<div class="r-bien"><b>Ninguna calibración salió del rango</b> en estas fechas. Todas las boquillas quedaron dentro de ±${(tol*100).toFixed(0)} %.</div>`;
   h+='</section>';
   if(comoLeer) h+=`<section><h2>Cómo leerlo</h2><p style="margin:0;color:#2f3b33">Cada boquilla debe entregar la mitad del caudal teórico (L/ha × velocidad × ancho de faja × 60 ÷ 10 000) con una tolerancia de ±${(tol*100).toFixed(0)} %. Si una boquilla queda por arriba, aplica de más; si queda por abajo, aplica de menos. La sección roja lista las calibraciones que salieron del rango y qué boquilla falló; “Estado por dron” muestra cómo quedó cada drone en su última calibración.</p></section>`;
