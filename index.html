@@ -1478,15 +1478,77 @@ async function cargarVuelos(){
 /* ================= reportes ================= */
 /* Dibuja en la app las mismas gráficas del Dashboard y las devuelve como PNG (base64) */
 const fondoBlanco={id:'fondoBlanco',beforeDraw:c=>{const x=c.ctx;x.save();x.globalCompositeOperation='destination-over';x.fillStyle='#ffffff';x.fillRect(0,0,c.width,c.height);x.restore();}};
-function pngGrafica(cfg,titulo){
-  const cv=document.createElement('canvas'); cv.width=900; cv.height=360;
-  cv.style.cssText='position:fixed;left:-10000px;top:0;width:900px;height:360px';
+function pngGrafica(cfg,titulo,extra){
+  const H=(extra&&extra.alto)||360;
+  const cv=document.createElement('canvas'); cv.width=900; cv.height=H;
+  cv.style.cssText='position:fixed;left:-10000px;top:0;width:900px;height:'+H+'px';
   document.body.appendChild(cv);
   cfg.options=Object.assign({},cfg.options||{},{responsive:false,maintainAspectRatio:false,animation:false,devicePixelRatio:2});
   cfg.options.plugins=Object.assign({},cfg.options.plugins||{},{title:{display:true,text:titulo,align:'start',color:'#2e7d32',font:{size:16,weight:'bold'},padding:{bottom:12}}});
-  cfg.plugins=[fondoBlanco];
+  cfg.plugins=[fondoBlanco].concat((extra&&extra.plugins)||[]);
   const ch=new Chart(cv,cfg); const d=ch.toBase64Image('image/png',1); ch.destroy(); cv.remove();
   return d.split(',')[1];
+}
+
+/* ---------- gráficas con la figura de cada drone ---------- */
+const PAL_DRON=['#1f5f8b','#2e7d32','#b7791f','#7a4fa0','#2a9d8f','#8d6e63','#d4a017','#00838f','#5b6470','#e07a5f','#3d5a80','#6a994e'];
+function colorDron(d){
+  const todos=[...new Set(((S.cat&&S.cat.drones)||[]).map(x=>x.dron).concat(d))].sort((a,b)=>String(a).localeCompare(String(b),'es',{numeric:true}));
+  return PAL_DRON[Math.max(0,todos.indexOf(d))%PAL_DRON.length];
+}
+const claro=(hex,a)=>{ const n=parseInt(hex.slice(1),16), r=n>>16, g=(n>>8)&255, b=n&255; return `rgba(${r},${g},${b},${a})`; };
+function cargarImg(src){ return new Promise(ok=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=()=>{ if(src!=='dron-generico.svg'){ cargarImg('dron-generico.svg').then(ok); } else ok(null); }; i.src=src; }); }
+async function imgsDrones(nombres){
+  const mods=[...new Set(nombres.map(modeloDron))], out={};
+  await Promise.all(mods.map(async m=>{ out[m]=await cargarImg(imgModelo(m)); }));
+  return out;
+}
+/** Dibuja debajo de cada barra la figura del drone, su nombre en su color y (opcional) la fecha */
+function ejeDrones(items,imgs){
+  return {id:'ejeDrones',afterDraw(c){
+    const x=c.scales.x, ctx=c.ctx, y0=c.chartArea.bottom+6, n=items.length;
+    const paso=n>1?Math.abs(x.getPixelForValue(1)-x.getPixelForValue(0)):c.chartArea.width;
+    const w=Math.min(78,paso*0.86), h=w*0.55;
+    ctx.save();
+    items.forEach((it,i)=>{
+      const cx=x.getPixelForValue(i), im=imgs[modeloDron(it.nombre)];
+      if(im){ const r=Math.min(w/im.width,h/im.height); ctx.drawImage(im,cx-im.width*r/2,y0+(h-im.height*r)/2,im.width*r,im.height*r); }
+      ctx.font='bold 12px Nunito, Arial, sans-serif'; const t=it.nombre, tw=Math.min(ctx.measureText(t).width+14,paso-2);
+      const py=y0+h+3; ctx.fillStyle=it.color; if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(cx-tw/2,py,tw,18,9); ctx.fill(); } else ctx.fillRect(cx-tw/2,py,tw,18);
+      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t,cx,py+9.5,paso-8);
+      if(it.sub){ ctx.font='bold 10.5px Nunito, Arial, sans-serif'; ctx.fillStyle='#6b766e'; ctx.fillText(it.sub,cx,py+29); }
+    });
+    ctx.restore();
+  }};
+}
+/** Escribe el número encima (o debajo si es negativo) de cada barra */
+function valoresBarras(fmt,fuera,pref){
+  return {id:'valoresBarras',afterDatasetsDraw(c){
+    const ctx=c.ctx; ctx.save(); ctx.textAlign='center';
+    c.data.datasets.forEach((ds,di)=>{ if(ds.type==='line') return; const meta=c.getDatasetMeta(di); if(meta.hidden) return;
+      meta.data.forEach((bar,i)=>{ const v=ds.data[i]; if(v==null||isNaN(v)) return;
+        const neg=v<0, y=neg?bar.y+13:bar.y-5;
+        ctx.font='900 12px Nunito, Arial, sans-serif'; ctx.fillStyle=fuera&&fuera(v,i,di)?'#c0392b':'#18201a';
+        ctx.textBaseline=neg?'top':'bottom';
+        const tx=(pref?pref[di]:'')+fmt(v), ty=neg?bar.y+4:y;
+        ctx.lineWidth=4; ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.lineJoin='round'; ctx.strokeText(tx,bar.x,ty); ctx.fillText(tx,bar.x,ty);
+      });
+    });
+    ctx.restore();
+  }};
+}
+function margenY(op,vals,extra){
+  const v=vals.filter(x=>x!=null&&!isNaN(x)); if(!v.length) return op;
+  op.scales=Object.assign({},op.scales||{}); const y=op.scales.y=Object.assign({},op.scales.y||{});
+  const mx=Math.max(...v), mn=Math.min(...v), e=extra||1.6;
+  if(y.suggestedMax==null||mx+e>y.suggestedMax) y.suggestedMax=Math.ceil(mx+e);
+  if(mn<0&&(y.suggestedMin==null||mn-e<y.suggestedMin)) y.suggestedMin=Math.floor(mn-e);
+  return op;
+}
+function opcEjeDrones(op,abajo){
+  op.layout=Object.assign({},op.layout||{},{padding:Object.assign({top:6,left:4,right:4},{bottom:abajo})});
+  op.scales=Object.assign({},op.scales||{}); op.scales.x=Object.assign({},op.scales.x||{},{ticks:{display:false},grid:{display:false}});
+  return op;
 }
 async function graficasReporte(desde,hasta){
   if(!window.Chart) return null;
@@ -1504,11 +1566,16 @@ async function graficasReporte(desde,hasta){
   const key=r=>r.iso+'|'+String(r.descarga).replace(/\D/g,'').padStart(4,'0');
   const ult={}; regs.forEach(r=>{ if(!ult[r.dron]||key(r)>=key(ult[r.dron])) ult[r.dron]=r; });
   const last=Object.values(ult).sort((a,b)=>orden(a.dron,b.dron));
+  const imgs=await imgsDrones([...regs.map(r=>r.dron),...vs.map(v=>v.dron)]);
+  const pctF=v=>(v>0?'+':'')+v.toFixed(1)+'%', fueraP=v=>Math.abs(v)>tol;
   if(last.length){
-    out.boquillas=pngGrafica({type:'bar',data:{labels:last.map(r=>r.dron),datasets:[
-      {label:'Boquilla 1',data:last.map(r=>+(r.varB1*100).toFixed(2)),backgroundColor:'#2e7d32',borderRadius:4},
-      {label:'Boquilla 2',data:last.map(r=>+(r.varB2*100).toFixed(2)),backgroundColor:'#9bc89a',borderRadius:4}]},options:optPct()},
-      'Variación por boquilla — última calibración (%)');
+    const col=last.map(r=>colorDron(r.dron));
+    const ds=(k,a,et)=>({label:et,data:last.map(r=>r[k]==null?null:+(r[k]*100).toFixed(2)),backgroundColor:col.map(c=>a<1?claro(c,a):c),
+      borderColor:last.map(r=>r[k]!=null&&Math.abs(r[k])>tolF?'#c0392b':'rgba(0,0,0,0)'),borderWidth:2.5,borderRadius:5,categoryPercentage:.7,barPercentage:.9});
+    const op=margenY(opcEjeDrones(optPct(),78),last.flatMap(r=>[r.varB1,r.varB2]).map(x=>x==null?null:x*100)); op.plugins.legend={display:false};
+    out.boquillas=pngGrafica({type:'bar',data:{labels:last.map(r=>r.dron),datasets:[ds('varB1',1,'Boquilla 1'),ds('varB2',.45,'Boquilla 2')]},options:op},
+      'Variación por boquilla — última calibración (%) · color fuerte = Boquilla 1 · claro = Boquilla 2',
+      {alto:430,plugins:[ejeDrones(last.map((r,i)=>({nombre:r.dron,color:col[i],sub:r.descarga+' · '+String(r.fecha).slice(0,5)})),imgs),valoresBarras(pctF,fueraP,['B1 ','B2 '])]});
   }
   // 2) variación general en el tiempo
   const fechas=[...new Set(regs.map(r=>r.iso))].sort(), dr=[...new Set(regs.map(r=>r.dron))].sort(orden);
@@ -1522,16 +1589,22 @@ async function graficasReporte(desde,hasta){
   const dv=[...new Set(vs.map(v=>v.dron))].sort(orden);
   if(dv.length){
     const pr=(d,k)=>{const a=vs.filter(v=>v.dron===d&&v[k]!=null).map(v=>v[k]); return a.length?+avg(a).toFixed(2):null;};
-    const cfg=configLha(dv,pr,dv.map(d=>Math.abs(avg(vs.filter(v=>v.dron===d&&v.variacion!=null).map(v=>v.variacion)))<=tolF?'#2e7d32':'#c0392b'),tolF,
-      {plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}});
-    out.lha=pngGrafica({type:'bar',data:{labels:dv,datasets:cfg.datasets},options:cfg.options},'L/ha real vs teórico — promedio por dron');
+    const malD=d=>Math.abs(avg(vs.filter(v=>v.dron===d&&v.variacion!=null).map(v=>v.variacion)))>tolF;
+    const cfg=configLha(dv,pr,dv.map(colorDron),tolF,{plugins:{legend:{display:false}}});
+    cfg.datasets[0].borderColor=dv.map(d=>malD(d)?'#c0392b':'rgba(0,0,0,0)'); cfg.datasets[0].borderWidth=2.5; cfg.datasets[0].borderRadius=5;
+    const op=opcEjeDrones(cfg.options,78);
+    out.lha=pngGrafica({type:'bar',data:{labels:dv,datasets:cfg.datasets},options:op},'L/ha real vs teórico — promedio por dron',
+      {alto:430,plugins:[ejeDrones(dv.map(d=>({nombre:d,color:colorDron(d),sub:vs.filter(v=>v.dron===d).length+' vuelo'+(vs.filter(v=>v.dron===d).length===1?'':'s')})),imgs),valoresBarras(v=>v.toFixed(2),(v,i)=>malD(dv[i]))]});
   }
   // 4) variación L/ha por vuelo
   if(vs.length){
     const o=vs.slice().sort((a,b)=>a.iso<b.iso?-1:a.iso>b.iso?1:a.fila-b.fila);
+    const op=margenY(opcEjeDrones(optPct(),88),o.map(v=>v.variacion==null?null:v.variacion*100)); op.plugins.legend={display:false};
     out.vuelos=pngGrafica({type:'bar',data:{labels:o.map(v=>v.dron+' '+v.fecha.slice(0,5)),datasets:[
-      {label:'% Var L/ha',data:o.map(v=>v.variacion==null?null:+(v.variacion*100).toFixed(2)),backgroundColor:o.map(v=>v.variacion!=null&&Math.abs(v.variacion)<=tolF?'#2e7d32':'#c0392b'),borderRadius:3}]},options:optPct()},
-      'Variación L/ha por vuelo (%)');
+      {label:'% Var L/ha',data:o.map(v=>v.variacion==null?null:+(v.variacion*100).toFixed(2)),backgroundColor:o.map(v=>colorDron(v.dron)),
+       borderColor:o.map(v=>v.variacion!=null&&Math.abs(v.variacion)>tolF?'#c0392b':'rgba(0,0,0,0)'),borderWidth:2.5,borderRadius:5}]},options:op},
+      'Variación L/ha por vuelo (%)',
+      {alto:440,plugins:[ejeDrones(o.map(v=>({nombre:v.dron,color:colorDron(v.dron),sub:v.fecha.slice(0,5)+(v.labor?' · '+v.labor:'')})),imgs),valoresBarras(pctF,fueraP)]});
   }
   return out;
 }
