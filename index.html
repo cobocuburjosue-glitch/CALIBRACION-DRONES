@@ -1778,9 +1778,8 @@ function armarReporteCal(desde, hasta, regs, vs, graf, comoLeer){
     <div class="${fuera.length?'malo':''}"><b class="${fuera.length?'rp':''}">${fuera.length}</b><span>Calibraciones fuera de rango</span></div>
     <div class="${dronesFuera.length?'malo':''}"><b class="${dronesFuera.length?'rp':''}">${dronesFuera.length}</b><span>Drones fuera (última calibración)</span></div></div>
     ${vgProm!=null?`<p style="margin:8px 0 0;color:#56635a">Variación general promedio: <b style="color:#18201a">${(vgProm*100).toFixed(2)} %</b> (valor absoluto).</p>`:''}</section>`;
-  // 1) HALLAZGOS Y RECOMENDACIONES
-  h+=`<section><div class="r-dos r-hall"><div><h2>Hallazgos principales</h2><ul>${A.hall.map(x=>`<li>${x}</li>`).join('')}</ul></div>
-    <div class="r-rec"><h2>Recomendaciones</h2><ul>${A.rec.map(x=>`<li>${x}</li>`).join('')}</ul></div></div></section>`;
+  // 1) HALLAZGOS
+  h+=`<section class="r-hall"><h2>Hallazgos principales</h2><ul>${A.hall.map(x=>`<li>${x}</li>`).join('')}</ul></section>`;
   // ESTADO POR DRON
   if(last.length) h+=`<section><h2>Estado por dron <small style="font-size:13px;color:#56635a">última calibración</small></h2><div class="r-drones">${last.map(r=>{ const o=okR(r), mod=modeloDron(r.dron); return `<div class="r-dr ${o?'':'bad'}">
       <div class="dc-img"><span class="mod-dr">${mod||'Drone'}</span><img src="${imgModelo(mod)}" alt="" onerror="this.onerror=null;this.src='dron-generico.svg'"></div>
